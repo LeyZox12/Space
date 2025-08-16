@@ -21,8 +21,10 @@ void Ship::deccelerate(float dt)
     if(throttle < -maxThrottle) throttle = -maxThrottle;
 }
 
-void Ship::update(float dt)
+void Ship::update(vector<Planet> planets, float dt)
 {
+    if(landing || landed) return;
+
     //rotation update
     float rot = sprite.getRotation().asDegrees();
     float newRot = rot * 2.f - oldRot + steer * dt * dt;
@@ -37,6 +39,18 @@ void Ship::update(float dt)
     sprite.setPosition(newPos);
     oldPos = pos;
     oldRot = rot;
+
+
+    auto it = min_element(planets.begin(), planets.end(), [pos](auto& p1, auto& p2)
+            {
+                return hypot(p1.getPos().x - pos.x, p1.getPos().y - pos.y) < 
+                       hypot(p2.getPos().x - pos.x, p2.getPos().y - pos.y); 
+            });
+    int index = distance(planets.begin(), it);
+    vec2 diff = planets[index].getPos() - sprite.getPosition();
+    float dist = hypot(diff.x, diff.y) - planets[index].getRadius();
+    //if(dist < 200.f)landing = true;
+    
 }
 
 void Ship::leftRotate()
@@ -62,8 +76,9 @@ void Ship::debugOnScreen(RenderWindow& window, float dt)
 
     vec2 diff = sprite.getPosition() - oldPos;
     float rotDiff = -sprite.getRotation().asDegrees() - oldRot;
-    string debugStr = "pos: \nx:" + format("{:.1f}",sprite.getPosition().x) + "\ny:" + format("{:.1f}",sprite.getPosition().y) + "\nthrottle:" + format("{:.1f}",throttle) + "\nsteer:" + format("{:.1f}",steer) + "\nmag:" + format("{:.1f}", hypot(diff.x, diff.y));
-    
+    string debugStr = "pos: \nx:" + format("{:.1f}",sprite.getPosition().x) + "\ny:" + format("{:.1f}",sprite.getPosition().y) + "\nthrottle:" + format("{:.1f}",throttle) + "\nsteer:" + format("{:.1f}",steer) + "\nmag:" + format("{:.1f}", hypot(diff.x, diff.y)) + "\n";
+    if(brake) debugStr += "EMERGENCY BRAKE ON\n";
+    if(landing) debugStr += "LANDING\n";
     t.setString(debugStr);
     t.setFillColor(Color::White);
     window.draw(t);    
@@ -81,6 +96,7 @@ void Ship::debugOnScreen(RenderWindow& window, float dt)
         //window.draw(line);
         if(brake)
         {
+
             line[0].color = Color::Red;
             line[1].color = Color::Red;
             line[0].position = sprite.getPosition();
@@ -101,7 +117,11 @@ void Ship::emergencyStop()
 {
     vec2 diff = sprite.getPosition() - oldPos;
     float mag = hypot(diff.x, diff.y);
-    vel = -diff * 100.f;
+    if(mag > 0.f) diff /= mag;
+    vel = vec2(0,0);
+    cout << diff.x << ";" << diff.y << endl;
+    oldPos += diff * 0.05f;
+    throttle = 0;
     brake = true; 
 }
 

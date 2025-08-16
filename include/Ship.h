@@ -6,11 +6,14 @@
 #include <string>
 #include <format>
 #include <vector>
+#include "Planet.h"
 
 using namespace sf;
 using namespace std;
 
 typedef Vector2f vec2;
+
+class Planet;
 
 class Ship
 {
@@ -18,7 +21,7 @@ class Ship
         Ship();
         void accelerate(float dt);
         void deccelerate(float dt);
-        void update(float dt);
+        void update(vector<Planet> planets, float dt);
         void leftRotate();
         void rightRotate();
         void debugOnScreen(RenderWindow& window, float dt);
@@ -39,6 +42,8 @@ class Ship
         float oldRot = 0.f;
         bool advancedDebug = false;
         bool brake = false;
+        bool landing = false;
+        bool landed = false;
         vec2 vel = vec2(0, 0);
         float debugLineMultiplier = 100.f;
 

@@ -6,6 +6,7 @@
 #include "Camera.hpp"
 #include "Ship.h"
 #include "Map.h"
+#include "Planet.h"
 
 using namespace sf;
 using namespace std;
@@ -18,6 +19,7 @@ vector<Keyboard::Key> pressedKeys;
 sf::Clock deltaClock;
 Camera cam(vec2(window.getSize().x, window.getSize().y), 4.f);
 vector<RectangleShape> stars;
+vector<Planet> planets;
 Map map(vec2(window.getSize().x - 300, window.getSize().y), vec2(window.getSize().x - 300, window.getSize().y - 300), vec2(300, 300));
 
 const int STARSAMOUNT = 100;
@@ -28,6 +30,7 @@ void updateStars();
 
 int main()
 {
+    start();
     while(window.isOpen())
     {
         vec2 mousepos = vec2(Mouse::getPosition(window).x, Mouse::getPosition(window).y);
@@ -73,11 +76,11 @@ int main()
         inputManager(dt);
         cam.update(ship.getPos(), window);
         map.update(window, ship.getPos(), dt);
-        ship.update(dt);
+        ship.update(planets, dt);
         window.clear(Color::Black);
         updateStars();
         ship.draw(window);
-
+        for(auto& planet : planets)planet.draw(window);
         ship.debugOnScreen(window, dt);
         map.draw(window, mouseposWorld, ship.getPos());
         window.display();
@@ -88,6 +91,9 @@ void start()
 {
     ship.setPos(vec2(256, 256));
     window.setFramerateLimit(60);
+    planets.emplace_back(Planet(vec2(-3000, 2000), 600.f));
+    planets.emplace_back(Planet(vec2(1300, -2000), 600.f));
+    planets.emplace_back(Planet(vec2(1200, 0), 600.f));
 }
 
 void inputManager(float dt)
