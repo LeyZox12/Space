@@ -18,7 +18,7 @@ class Planet
         void updatePoints();
         void setPos(vec2 pos);
         vec2 getPos();
-        float getRadius();
+        float getRad();
         void setPoint(int index, float newDist);
         int getClosestPoint(vec2 pos);
         void draw(RenderWindow& window);

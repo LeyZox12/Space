@@ -8,7 +8,6 @@ Planet::Planet(vec2 pos, float radius)
     this->radius = radius;
     pointCount = (int)round(radius/20.f);
     sprite.setPointCount(pointCount);
-    cout <<pointCount << endl;
     updatePoints();
 }
 
@@ -34,7 +33,7 @@ vec2 Planet::getPos()
     return pos;
 }
 
-float Planet::getRadius()
+float Planet::getRad()
 {
     return radius;
 }
