@@ -62,7 +62,7 @@ int Planet::getClosestPoint(vec2 pos)
     return closestIndex;
 }
 
-void Planet::draw(RenderWindow& window)
+void Planet::draw(RenderTexture& window)
 {
     window.draw(sprite);
 }

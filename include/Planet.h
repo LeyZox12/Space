@@ -21,9 +21,9 @@ class Planet
         float getRad();
         void setPoint(int index, float newDist);
         int getClosestPoint(vec2 pos);
-        void draw(RenderWindow& window);
+        void draw(RenderTexture& window);
     private:
-        int pointCount = 20;
+        int pointCount;
         ConvexShape sprite;
         vec2 pos;
         float radius;

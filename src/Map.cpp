@@ -19,7 +19,7 @@ void Map::setPos(vec2 posDisabled, vec2 posEnabled)
     this->posEnabled = posEnabled;
 }
 
-void Map::draw(RenderWindow& window, vec2 mousepos, vec2 shipPos)
+void Map::draw(RenderWindow& window, vector<Planet> planets, vec2 mousepos, vec2 shipPos)
 {
     vec2 pos = mapSprite.getPosition();
     vec2 size = mapSprite.getSize();
@@ -29,14 +29,26 @@ void Map::draw(RenderWindow& window, vec2 mousepos, vec2 shipPos)
        mousepos.y < pos.y + size.y)
     {
         static auto crosshairCur = Cursor(Cursor::Type::Cross);
-        window.setMouseCursor(crosshairCur);
+        //window.setMouseCursor(crosshairCur);
     }
     else
     {
         static auto normalCur = Cursor(Cursor::Type::Arrow);
-        window.setMouseCursor(normalCur);
+       // window.setMouseCursor(normalCur);
     }
     window.draw(mapSprite);
+    CircleShape cir;
+    for(auto& p : planets)
+    {
+        cir.setFillColor(Color::Red);
+        cir.setRadius(1.f / mapDistance * p.getRad() * mapSprite.getSize().x * 0.5f);
+        cir.setOrigin({cir.getRadius(), cir.getRadius()});
+        vec2 diff = p.getPos() - shipPos;
+        diff /= mapDistance;
+        vec2 center = mapSprite.getPosition() + mapSprite.getSize() * 0.5f;
+        cir.setPosition(center + diff * mapSprite.getSize().x * 0.5f);
+        window.draw(cir);
+    }
     if(pin)
     {
         vec2 center = mapSprite.getPosition() + mapSprite.getSize() * 0.5f;
@@ -57,12 +69,22 @@ void Map::draw(RenderWindow& window, vec2 mousepos, vec2 shipPos)
     }
 }
 
-void Map::onClick(vec2 mousepos)
+bool Map::onClick(vec2 mousepos)
 {
+    vec2 p = mapSprite.getPosition();
+    vec2 s = mapSprite.getSize();
+    if(!(mousepos.x > p.x && mousepos.y > p.y && mousepos.x < p.x + s.x && mousepos.y < p.y + s.y)) return false;
     vec2 ratio = (mousepos - (mapSprite.getPosition()+mapSprite.getSize()/ 2.f))/(mapSprite.getSize().x*0.5f);
     pinRatio = ratio;
     pinPos = pinRatio * mapDistance;
     pin = true;
+    return true;
+}
+
+void Map::onScroll(int delta)
+{
+    mapDistance += delta * -5000;
+    if(mapDistance == 0) mapDistance = 1;
 }
 
 void Map::toggle()

@@ -7,35 +7,56 @@
 #include "Ship.h"
 #include "Map.h"
 #include "Planet.h"
+#include "Player.h"
+#include "PointEngine.h"
 
 using namespace sf;
 using namespace std;
 
 typedef Vector2f vec2;
 
+enum Mode
+{
+    SHIP,
+    PLAYER
+};
+
+//TODO PLANET COLLISION W/ SHIP 
 RenderWindow window(VideoMode({512, 512}), "space is cool");
 Ship ship;
 vector<Keyboard::Key> pressedKeys;
 sf::Clock deltaClock;
 Camera cam(vec2(window.getSize().x, window.getSize().y), 4.f);
 vector<RectangleShape> stars;
+RectangleShape bg;
 vector<Planet> planets;
+RenderTexture windowTex;
 Map map(vec2(window.getSize().x - 300, window.getSize().y), vec2(window.getSize().x - 300, window.getSize().y - 300), vec2(300, 300));
+Shader postProcessing;
+PointEngine pe;
+
+int mode = Mode::SHIP;
+bool holding = false;
 
 const int STARSAMOUNT = 100;
+const float pixelSize = 5.f;
+const float PLAYER_SPEED = 5.f;
+const float SEGMENT_SIZE = 10.f;
 
 void start();
-void inputManager(float dt);
+void inputManager(float dt, Player& player);
 void updateStars();
+void incrementRope(Player& player);
 
 int main()
 {
     start();
+    Player player(&pe.getPoint(1));
     while(window.isOpen())
     {
         vec2 mousepos = vec2(Mouse::getPosition(window).x, Mouse::getPosition(window).y);
         vec2 mouseposWorld = window.mapPixelToCoords(Vector2i(mousepos.x, mousepos.y));
-        float dt = deltaClock.restart().asSeconds();
+        float dt = 1.f / 60.f;
         while(optional<Event> e = window.pollEvent())
         {
             if(e->is<Event::Closed>())window.close();
@@ -47,6 +68,8 @@ int main()
                 cam.setSize(vec2(size.x, size.y));
                 stars.clear();
                 map.setPos(vec2(window.getSize().x - 300, window.getSize().y), vec2(window.getSize().x - 300, window.getSize().y - 300));
+                windowTex.resize({window.getSize().x, window.getSize().y});
+                bg.setSize({window.getSize().x, window.getSize().y});
             }
             if(e->is<Event::KeyPressed>())
             {
@@ -60,6 +83,18 @@ int main()
                 if(key == Keyboard::Key::F3) ship.toggleAdvancedDebug();
                 else if(key == Keyboard::Key::LShift) ship.setThrottle(0.f);
                 else if(key == Keyboard::Key::Tab) map.toggle();
+                else if(key == Keyboard::Key::E)
+                {
+                    mode == 0 ? mode = 1 : mode = 0;
+                    player.setVel(vec2(0, 0));
+                    for(int i = 0; i < pe.getPointCount(); i++)
+                    {
+                        Point& p = pe.getPoint(i);
+                        p.setPos(ship.getPos(), true);
+                        p.setOldPos(ship.getPos());
+                    }
+                    //if(mode == Mode::PLAYER) player.setPos(ship.getPos());
+                }
             }
             else if(e->is<Event::MouseButtonPressed>())
             {
@@ -67,22 +102,56 @@ int main()
                 switch(button)
                 {
                     case(Mouse::Button::Left):
-                        map.onClick(mouseposWorld);
+                        
+                        if(!map.onClick(mouseposWorld))
+                        {
+                            holding = true;
+                            incrementRope(player);
+                        }
                         break;
                 }
             }
+            else if(e->is<Event::MouseButtonReleased>())
+            {
+                holding = false;
+            }
+            else if(e->is<Event::MouseWheelScrolled>())
+            {
+                map.onScroll(e->getIf<Event::MouseWheelScrolled>()->delta);
+            }
         }
-
-        inputManager(dt);
-        cam.update(ship.getPos(), window);
+        if(holding) incrementRope(player);
+        inputManager(dt, player);
+        vec2 target = mode == Mode::SHIP ? ship.getPos() : player.getPos();
+        cam.update(target);
+        bg.setPosition(cam.getPos()-cam.getSize()*0.5f);
+        windowTex.setView(cam.getView());
+        window.setView(cam.getView());
         map.update(window, ship.getPos(), dt);
         ship.update(planets, dt);
         window.clear(Color::Black);
+        windowTex.clear();
         updateStars();
-        ship.draw(window);
-        for(auto& planet : planets)planet.draw(window);
+        ship.draw(windowTex);
+        for(auto& planet : planets)planet.draw(windowTex);
+        if(mode == Mode::PLAYER)
+        {
+            player.update(planets[ship.getCurrentPlanet()], mouseposWorld, ship.getLanded(),dt);
+            pe.getPoint(0).setPos(ship.getPos(), true);
+            pe.updatePointPos(dt, mouseposWorld);
+            pe.applyConstraints(4, dt);
+            pe.applyCollisions(4);
+            pe.displayAsRects(windowTex, Color::White, 10.f);
+            player.draw(windowTex);
+        }
+        windowTex.display();
+        postProcessing.setUniform("screen", windowTex.getTexture());
+        postProcessing.setUniform("pixelSize", pixelSize);
+        postProcessing.setUniform("u_resolution", vec2(window.getSize().x, window.getSize().y));
+        window.draw(bg, &postProcessing);
+        map.draw(window, planets, mouseposWorld, ship.getPos());
         ship.debugOnScreen(window, dt);
-        map.draw(window, mouseposWorld, ship.getPos());
+        //pe.display(window, Color::Blue);
         window.display();
     }
 }
@@ -94,30 +163,100 @@ void start()
     planets.emplace_back(Planet(vec2(-3000, 2000), 600.f));
     planets.emplace_back(Planet(vec2(1300, -2000), 600.f));
     planets.emplace_back(Planet(vec2(1200, 0), 600.f));
+    planets.emplace_back(Planet(vec2(100200, 0), 10000.f));
+    windowTex.resize({window.getSize().x, window.getSize().y});
+    bg.setSize({window.getSize().x, window.getSize().y});
+    if(!postProcessing.loadFromFile("res/postProcessing.frag", Shader::Type::Fragment)) cout << "couldn't load shader";
+    pe.addPoint(vec2(0, 0), true, false, SEGMENT_SIZE, 0);
+    pe.getPoint(0).setGravityScale(0.f);
+    pe.addPoint(ship.getPos(), false, false, SEGMENT_SIZE, 0);
+    pe.getPoint(1).setGravityScale(0.f);
+    pe.addConstraint(0, 1, 1, SEGMENT_SIZE);
+
 }
 
-void inputManager(float dt)
+void inputManager(float dt, Player& player)
 {
-    for(auto& key : pressedKeys)
-    switch(key)
+    switch(mode)
     {
-        case(Keyboard::Key::Z):
-            ship.accelerate(dt);
+        case(Mode::SHIP):
+            for(auto& key : pressedKeys)
+            switch(key)
+            {
+                case(Keyboard::Key::Up):
+                    cam.getView().zoom(1.1f);
+                    break;
+                case(Keyboard::Key::Down):
+                    cam.getView().zoom(0.9f);
+                    break;
+                case(Keyboard::Key::Z):
+                    ship.accelerate(dt);
+                    break;
+                case(Keyboard::Key::S):
+                    ship.deccelerate(dt);
+                    break;
+                case(Keyboard::Key::Q):
+                    ship.leftRotate();
+                    break;
+                case(Keyboard::Key::D):
+                    ship.rightRotate();
+                    break;
+                case(Keyboard::Key::Space):
+                    ship.emergencyStop();
+                    break;
+                default:
+                    break;
+            }
             break;
-        case(Keyboard::Key::S):
-            ship.deccelerate(dt);
-            break;
-        case(Keyboard::Key::Q):
-            ship.leftRotate();
-            break;
-        case(Keyboard::Key::D):
-            ship.rightRotate();
-            break;
-        case(Keyboard::Key::Space):
-            ship.emergencyStop();
-            break;
-        default:
-            break;
+        case(Mode::PLAYER):
+        {
+            float angle = player.getRot();
+            vec2 translation = vec2(cos(angle) * PLAYER_SPEED, sin(angle) * PLAYER_SPEED);
+            if(ship.getLanded())
+                for(auto& key : pressedKeys)
+                    switch(key)
+                    {
+                        case(Keyboard::Key::Z):
+                            
+                            break;
+                        case(Keyboard::Key::S):
+                            break;
+                        case(Keyboard::Key::Q):
+                            player.move(-translation);
+                            break;
+                        case(Keyboard::Key::D):
+                            player.move(translation);
+                            break;
+                        case(Keyboard::Key::Space):
+                            break;
+                        default:
+                            break;
+                    }
+            else
+            {
+                for(auto& key : pressedKeys)
+                    switch(key)
+                    {
+                        case(Keyboard::Key::Z):
+                            player.move({0, -PLAYER_SPEED});
+                            break;
+                        case(Keyboard::Key::S):
+                            player.move({0, PLAYER_SPEED});
+                            break;
+                        case(Keyboard::Key::Q):
+                            player.move({PLAYER_SPEED, 0});
+                            break;
+                        case(Keyboard::Key::D):
+                            player.move({-PLAYER_SPEED, 0});
+                            break;
+                        case(Keyboard::Key::Space):
+                            break;
+                        default:
+                            break;
+                    }
+
+            }
+        }
     }
 }
 
@@ -137,7 +276,7 @@ void updateStars()
     vector<int> toDelete;
     for(auto& star : stars)
     {
-        window.draw(star);
+        windowTex.draw(star);
         vec2 diff = ship.getPos() - star.getPosition();
         float dist = hypot(diff.x, diff.y);
         if(dist > sqrt(window.getSize().x * window.getSize().x) * 2.f) toDelete.push_back(i);
@@ -147,3 +286,13 @@ void updateStars()
         stars.erase(stars.begin() + i);
 }
 
+void incrementRope(Player& player)
+{
+    pe.addPoint(ship.getPos(), false, false, SEGMENT_SIZE, 0);
+    Point& p = pe.getPoint(pe.getPointCount()-1);
+    p.setGravityScale(0.f);
+
+    pe.addConstraint(pe.getPointCount()-2, pe.getPointCount()-1,2, SEGMENT_SIZE*2.f);
+    player.setPoint(&p);
+                    //pe.addConstraint(0, pe.getPointCount()-1, 2, SEGMENT_SIZE*2.f);
+}

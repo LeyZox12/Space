@@ -27,11 +27,14 @@ class Ship
         void rightRotate();
         void debugOnScreen(RenderWindow& window, float dt);
         void setPos(vec2 pos);
-        void draw(RenderWindow& window);
+        void draw(RenderTexture& window);
         void emergencyStop();
         void toggleAdvancedDebug();
         void setThrottle(float val);
+        bool getLanding();
+        bool getLanded();
         vec2 getPos();
+        int getCurrentPlanet();
     private:
         Texture spriteTexture;
         RectangleShape sprite;
@@ -47,6 +50,7 @@ class Ship
         bool brake = false;
         bool landing = false;
         bool landed = false;
+        int currentPlanetIndex = -1;
         vec2 vel = vec2(0, 0);
         float debugLineMultiplier = 100.f;
         float leftLandingDist = 0.f;

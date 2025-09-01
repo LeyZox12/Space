@@ -1,4 +1,4 @@
-#include <Ship.h>
+#include "Ship.h"
 
 Ship::Ship()
 {
@@ -33,6 +33,26 @@ void Ship::deccelerate(float dt)
     if(throttle < -maxThrottle) throttle = -maxThrottle;
 }
 
+
+vec2 rotate(vec2 vec, vec2 center, float angle)
+{
+
+    vec -= center;
+    vec = vec2(vec.x * cos(angle) - vec.y * sin(angle),
+               vec.x * sin(angle) + vec.y * cos(angle));
+    return vec + center;
+}
+
+bool rectCircleColl(RectangleShape rect, CircleShape cir)
+{
+    vec2 p = rect.getPosition();
+    vec2 point = cir.getPosition();
+    point = rotate(point, rect.getPosition(), -rect.getRotation().asRadians());
+    float rad = cir.getRadius();
+    vec2 s = rect.getSize();
+    return (abs(p.x - point.x) < rad + s.x * 0.5f && abs(p.y - point.y) < rad + s.y * 0.5f);
+}
+
 void Ship::update(vector<Planet> planets, float dt)
 {
     vec2 pos = sprite.getPosition();
@@ -42,6 +62,7 @@ void Ship::update(vector<Planet> planets, float dt)
                        hypot(p2.getPos().x - pos.x, p2.getPos().y - pos.y); 
             });
     int index = distance(planets.begin(), it);
+    currentPlanetIndex = index;
     vec2 diff = planets[index].getPos() - sprite.getPosition();
     float planetDist = hypot(diff.x, diff.y) - planets[index].getRad();
     vec2 leftDiff = leftLandingGear.getPosition() - planets[index].getPos();
@@ -49,7 +70,15 @@ void Ship::update(vector<Planet> planets, float dt)
     float leftDistFromPlanet = hypot(leftDiff.x, leftDiff.y);
     float rightDistFromPlanet = hypot(rightDiff.x, rightDiff.y);
     float rad = planets[index].getRad();
-    if(planetDist < 200.f)landing = true;
+    float angle = sprite.getRotation().asRadians();
+    vec2 straight = vec2(cos(angle), sin(angle));
+    
+    float trueDist = hypot(diff.x, diff.y);
+    if(trueDist > 0.f)
+        diff /= trueDist;
+    float dot = straight.x * diff.x + straight.y * diff.y;
+    diff *= trueDist;
+    if(planetDist < 200.f && dot < 0.1 && dot > -0.1)landing = true;
     else landing = false;
     if(landing && landed == false)
     {
@@ -100,6 +129,17 @@ void Ship::update(vector<Planet> planets, float dt)
     oldPos = pos;
     oldRot = rot;
 
+    //planet / ship collision
+    CircleShape planet(planets[index].getRad());
+    planet.setPosition(planets[index].getPos());
+    planet.setOrigin({planet.getRadius(), planet.getRadius()});
+    if(rectCircleColl(sprite, planet))
+    {
+        sprite.setPosition(pos);
+        vel = vec2(0, 0);
+    }
+    
+
 }
 
 void Ship::leftRotate()
@@ -112,17 +152,27 @@ void Ship::rightRotate()
     steer = 30.f;
 }
 
-void Ship::draw(RenderWindow& window)
+void Ship::draw(RenderTexture& window)
 {
-    VertexArray line(PrimitiveType::LineStrip, 2);
+    float width = 7.f;
+    RectangleShape line({leftLandingDist, width});
+    line.setOrigin({0, width * 0.5f});
     float angle = sprite.getRotation().asRadians();
-    leftLandingGear.setPosition(sprite.getPosition());
+    vec2 pos = sprite.getPosition();
+    line.setPosition(pos);
+
+    leftLandingGear.setPosition(pos);
     leftLandingGear.move({cos(angle + PI/3.f) * leftLandingDist,
                           sin(angle + PI/3.f) * leftLandingDist});
+    line.setRotation(radians(angle + PI/3.f));
     window.draw(leftLandingGear);
-    rightLandingGear.setPosition(sprite.getPosition());
+    window.draw(line);
+    rightLandingGear.setPosition(pos);
     rightLandingGear.move({cos(angle + PI*0.66f) * rightLandingDist,
                            sin(angle + PI*0.66f) * rightLandingDist});
+    line.setSize({rightLandingDist, width*0.5f});
+    line.setRotation(radians(angle + PI*0.66f));
+    window.draw(line);
     window.draw(rightLandingGear);
     window.draw(sprite);
 }
@@ -136,7 +186,11 @@ void Ship::debugOnScreen(RenderWindow& window, float dt)
     vec2 diff = sprite.getPosition() - oldPos;
     float rotDiff = -sprite.getRotation().asDegrees() - oldRot;
     string debugStr = "pos: \nx:" + format("{:.1f}",sprite.getPosition().x) + "\ny:" + format("{:.1f}",sprite.getPosition().y) + "\nthrottle:" + format("{:.1f}",throttle) + "\nsteer:" + format("{:.1f}",steer) + "\nmag:" + format("{:.1f}", hypot(diff.x, diff.y)) + "\n";
-    if(brake) debugStr += "EMERGENCY BRAKE ON\n";
+    if(brake)
+    {
+        debugStr += "EMERGENCY BRAKE ON\n";
+        brake = false;
+    }
     if(landed) debugStr += "LANDED\n";
     else if(landing) debugStr += "LANDING\n";
     t.setString(debugStr);
@@ -192,6 +246,21 @@ void Ship::toggleAdvancedDebug()
 void Ship::setThrottle(float val)
 {
     throttle = val;
+}
+
+bool Ship::getLanding()
+{
+    return landing;
+}
+
+bool Ship::getLanded()
+{
+    return landed;
+}
+
+int Ship::getCurrentPlanet()
+{
+    return currentPlanetIndex;
 }
 
 vec2 Ship::getPos()
