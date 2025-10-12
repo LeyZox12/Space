@@ -41,7 +41,7 @@ void Map::draw(RenderWindow& window, vector<Planet> planets, vec2 mousepos, vec2
     for(auto& p : planets)
     {
         cir.setFillColor(Color::Red);
-        cir.setRadius(1.f / mapDistance * p.getRad() * mapSprite.getSize().x * 0.5f);
+        //cir.setRadius(1.f / mapDistance * p.getRad() * mapSprite.getSize().x * 0.5f);
         cir.setOrigin({cir.getRadius(), cir.getRadius()});
         vec2 diff = p.getPos() - shipPos;
         diff /= mapDistance;

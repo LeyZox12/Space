@@ -55,7 +55,19 @@ bool rectCircleColl(RectangleShape rect, CircleShape cir)
 
 void Ship::update(vector<Planet> planets, float dt)
 {
+    float rot = sprite.getRotation().asDegrees();
+    float newRot = rot * 2.f - oldRot + steer * dt * dt;
+    sprite.setRotation(degrees(newRot));    
+    steer *= 0.9f;
+
     vec2 pos = sprite.getPosition();
+    vec2 accDir = vec2(cos(sprite.getRotation().asRadians() - PI/2.f), sin(sprite.getRotation().asRadians() - PI/2.f));
+    vel += accDir * throttle;
+    vec2 newPos = pos * 2.f - oldPos + vel * dt * dt;
+    vel -= accDir * throttle;
+    sprite.setPosition(newPos);
+    oldPos = pos;
+    oldRot = rot;
     auto it = min_element(planets.begin(), planets.end(), [pos](auto& p1, auto& p2)
             {
                 return hypot(p1.getPos().x - pos.x, p1.getPos().y - pos.y) < 
@@ -63,13 +75,16 @@ void Ship::update(vector<Planet> planets, float dt)
             });
     int index = distance(planets.begin(), it);
     currentPlanetIndex = index;
+    return;
+    /*
+    vec2 pos = sprite.getPosition();
     vec2 diff = planets[index].getPos() - sprite.getPosition();
-    float planetDist = hypot(diff.x, diff.y) - planets[index].getRad();
+    //float planetDist = hypot(diff.x, diff.y) - planets[index].getRad();
     vec2 leftDiff = leftLandingGear.getPosition() - planets[index].getPos();
     vec2 rightDiff = rightLandingGear.getPosition() - planets[index].getPos();
     float leftDistFromPlanet = hypot(leftDiff.x, leftDiff.y);
     float rightDistFromPlanet = hypot(rightDiff.x, rightDiff.y);
-    float rad = planets[index].getRad();
+    //float rad = planets[index].getRad();
     float angle = sprite.getRotation().asRadians();
     vec2 straight = vec2(cos(angle), sin(angle));
     
@@ -106,7 +121,7 @@ void Ship::update(vector<Planet> planets, float dt)
         if(dist > 0.f)
         {
             diff /= dist;
-            vel += diff * (float)GRAVITY * (planet.getRad()/(dist * dist));
+            //vel += diff * (float)GRAVITY * (planet.getRad()/(dist * dist));
         }
     }
     
@@ -130,14 +145,14 @@ void Ship::update(vector<Planet> planets, float dt)
     oldRot = rot;
 
     //planet / ship collision
-    CircleShape planet(planets[index].getRad());
+    /*CircleShape planet(planets[index].getRad());
     planet.setPosition(planets[index].getPos());
     planet.setOrigin({planet.getRadius(), planet.getRadius()});
     if(rectCircleColl(sprite, planet))
     {
         sprite.setPosition(pos);
         vel = vec2(0, 0);
-    }
+    }*/
     
 
 }
