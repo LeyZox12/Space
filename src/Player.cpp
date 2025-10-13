@@ -31,7 +31,7 @@ vec2 rotateMouse(vec2 vec, vec2 center, float angle) {
 
 void Player::setPoint(Point *p) { point = p; }
 
-void Player::update(Planet currentPlanet, vec2 mousepos, bool landed,
+void Player::update(Planet& currentPlanet, vec2 mousepos, bool landed,
                     float dt) { // TODO rotate player according to mouse using
                                 // rotVel if not landed;
   vec2 rotated = rotateMouse(mousepos, baseSprite.getPosition(),

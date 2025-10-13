@@ -23,7 +23,7 @@ class Planet
         Planet(vec2 pos, float radius, float pixelSize, ElementRegistry& er);
         void step(Camera cam);
         void executeOnAxis(std::function<void(int, int)> task, int x, int y);
-        void display(sf::RenderWindow& window);
+        void display(sf::RenderTarget& window);
         void updatePhysics(int x, int y, std::vector<uint8_t>& buffer, std::vector<Element>& instanceBuffer, Element element);
         int getNeighbours(int x, int y);
         sf::Color getPixel(int x, int y);
@@ -38,10 +38,12 @@ class Planet
         bool getSandPixel(int x, int y);
         bool getWaterPixel(int x, int y);
         vec2 getPos();
+        sf::Texture& getTexture();
         void executeOnGrid(std::function<void(int, int, Planet&)> task);
         bool getAirPixel(int x, int y, std::vector<uint8_t>& buffer);
         bool isLighterPixel(Element e, int x, int y, std::vector<Element>& instanceBufferinstanceBuffer );
         bool doneUpdating = true;
+        sf::RectangleShape getSprite();
     private:
         ElementRegistry& er;
         int gridSize = 0;

@@ -18,7 +18,7 @@ class Map
     public:
         Map(vec2 posDisabled, vec2 posEnabled, vec2 spriteSize);
         void setPos(vec2 posDisabled, vec2 posEnabled);
-        void draw(RenderWindow& window, vector<Planet> planets, vec2 mousepos, vec2 shipPos);
+        void draw(RenderWindow& window, vector<Planet>& planets, vec2 mousepos, vec2 shipPos);
         bool onClick(vec2 mousepos);
         void toggle();
         void update(RenderWindow& window, vec2 shipPos, float dt);

@@ -1,4 +1,6 @@
 #pragma once
+#include "SFML/Graphics/RectangleShape.hpp"
+#include "SFML/Graphics/VertexArray.hpp"
 #define PI 3.141592653
 #define GRAVITY 66.7
 #include <iostream>
@@ -22,7 +24,7 @@ class Ship
         Ship();
         void accelerate(float dt);
         void deccelerate(float dt);
-        void update(vector<Planet> planets, float dt);
+        void update(vector<Planet>& planets, float dt);
         void leftRotate();
         void rightRotate();
         void debugOnScreen(RenderWindow& window, float dt);
@@ -31,7 +33,9 @@ class Ship
         void emergencyStop();
         void toggleAdvancedDebug();
         void setThrottle(float val);
+        RectangleShape getSprite();
         bool getLanding();
+        Texture& getTexture();
         bool getLanded();
         vec2 getPos();
         int getCurrentPlanet();

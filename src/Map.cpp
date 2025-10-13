@@ -19,7 +19,7 @@ void Map::setPos(vec2 posDisabled, vec2 posEnabled)
     this->posEnabled = posEnabled;
 }
 
-void Map::draw(RenderWindow& window, vector<Planet> planets, vec2 mousepos, vec2 shipPos)
+void Map::draw(RenderWindow& window, vector<Planet>& planets, vec2 mousepos, vec2 shipPos)
 {
     vec2 pos = mapSprite.getPosition();
     vec2 size = mapSprite.getSize();

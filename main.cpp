@@ -1,4 +1,5 @@
 #include "ElementRegistry.h"
+#include "SFML/Window/Keyboard.hpp"
 #include "include/Element.h"
 #include "include/Item.hpp"
 #include <SFML/Graphics.hpp>
@@ -37,11 +38,13 @@ Map map(vec2(window.getSize().x - 300, window.getSize().y),
         vec2(window.getSize().x - 300, window.getSize().y - 300),
         vec2(300, 300));
 Shader postProcessing;
+Shader collision;
 PointEngine pe;
 
 int mode = Mode::SHIP;
 int shipPointIndex = 0;
 bool holding = false;
+bool shaderDisplay = false;
 
 const int STARSAMOUNT = 100;
 const float pixelSize = 5.f;
@@ -103,6 +106,8 @@ int main() {
           }
           // if(mode == Mode::PLAYER) player.setPos(ship.getPos());
         }
+        if(key == Keyboard::Key::Space)
+          shaderDisplay = !shaderDisplay;
       } else if (e->is<Event::MouseButtonPressed>()) {
         Mouse::Button button = e->getIf<Event::MouseButtonPressed>()->button;
         switch (button) {
@@ -134,13 +139,32 @@ int main() {
     static clock_t start = clock();
     if(clock() - start > 100)
     {
-      for(auto& planet: planets) planet.step(cam);
+      //for(auto& planet: planets) planet.step(cam);
       start = clock();
     }
+    windowTex.clear();
     map.update(window, ship.getPos(), dt);
     ship.update(planets, dt);
     window.clear(Color::Black);
-    windowTex.clear();
+    if(shaderDisplay){
+    collision.setUniform("u_resolution", bg.getSize());
+    collision.setUniform("resolution1", (vec2)ship.getTexture().getSize());
+    collision.setUniform("resolution2", (vec2)planets[0].getTexture().getSize());
+    collision.setUniform("texture1", ship.getTexture());
+    collision.setUniform("texture2", planets[0].getTexture());
+    collision.setUniform("pos1", ship.getPos() - bg.getPosition());
+    collision.setUniform("pos2", planets[0].getPos() - bg.getPosition());
+    collision.setUniform("rot1", ship.getSprite().getRotation().asRadians());
+    collision.setUniform("scale1", vec2(ship.getSprite().getSize().x / ship.getTexture().getSize().x,
+                                                     ship.getSprite().getSize().y / ship.getTexture().getSize().y));
+    collision.setUniform("scale2", vec2(planets[0].getSprite().getSize().x / planets[0].getTexture().getSize().x,
+                                        planets[0].getSprite().getSize().y / planets[0].getTexture().getSize().y));
+
+    window.draw(bg, &collision);
+    }
+    else{
+    for (auto &planet : planets)
+      planet.display(windowTex);
     ship.draw(windowTex);
     if (mode == Mode::PLAYER) {
       player.update(planets[ship.getCurrentPlanet()], mouseposWorld,
@@ -160,9 +184,8 @@ int main() {
     window.draw(bg, &postProcessing);
     map.draw(window, planets, mouseposWorld, ship.getPos());
     ship.debugOnScreen(window, dt);
-    // pe.display(window, Color::Blue);
-    for (auto &planet : planets)
-      planet.display(window);
+    }
+    // pe.display(window, Color::Blue);*/
     window.display();
   }
 }
@@ -173,6 +196,9 @@ void start() {
   windowTex.resize({window.getSize().x, window.getSize().y});
   bg.setSize(vec2(window.getSize().x, window.getSize().y));
   if (!postProcessing.loadFromFile("res/postProcessing.frag",
+                                   Shader::Type::Fragment))
+    cout << "couldn't load shader";
+  if (!collision.loadFromFile("res/collision.frag",
                                    Shader::Type::Fragment))
     cout << "couldn't load shader";
   pe.addPoint(vec2(0, 0), false, false, SEGMENT_SIZE * 0.5f, 0);
@@ -253,9 +279,10 @@ void start() {
     
   addPlanet(vec2(600, 200), 60.f);
   addPlanet(vec2(-600, 200), 60.f);
-  //addPlanet(vec2(1300, -2000), 100.f);
+  addPlanet(vec2(0, -500), 100.f);
   //addPlanet(vec2(-3000, 2000), 600.f);
   //addPlanet(vec2(100200, 0), 10000.f);
+  for(auto& p : planets) p.step(cam);
 }
 
 void inputManager(float dt, Player &player) {
@@ -296,15 +323,14 @@ void inputManager(float dt, Player &player) {
       for (auto &key : pressedKeys)
         switch (key) {
         case (Keyboard::Key::Z):
-
           break;
         case (Keyboard::Key::S):
           break;
         case (Keyboard::Key::Q):
-          player.move(-translation);
+          player.move(translation);
           break;
         case (Keyboard::Key::D):
-          player.move(translation);
+          player.move(-translation);
           break;
         case (Keyboard::Key::Space):
           break;
@@ -349,15 +375,22 @@ void incrementRope(Player &player) {
 }
 
 void addPlanet(vec2 pos, float radius) {
-  Planet p (pos, radius, pixelSize, er);
+  planets.emplace_back(Planet(pos, radius, pixelSize, er));
+  Planet& p = planets[planets.size()-1];
   p.executeOnGrid([](int x, int y, Planet& p)
   {
     Element e = er.getElementById(LAVA);
     if(hypot(p.getGridSize()/2.f - x, p.getGridSize()/2.f- y) < p.getRadius()/10.f) p.setPixel(x, y, er.getElementById(ITEMID::LAVA));
-    else if(hypot(p.getGridSize()/2.f - x, p.getGridSize()/2.f- y) < p.getRadius()/4.f) p.setPixel(x, y, er.getElementById(ITEMID::STONE));
+    else if(hypot(p.getGridSize()/2.f - x, p.getGridSize()/2.f- y) < p.getRadius()/1.5f) p.setPixel(x, y, er.getElementById(ITEMID::STONE));
     else if(hypot(p.getGridSize()/2.f - x, p.getGridSize()/2.f- y) < p.getRadius()) p.setPixel(x, y, er.getElementById(ITEMID::SAND));
   });
   p.step(cam);
-  planets.emplace_back(p);
+  int index = planets.size()-1;
+  threads.emplace_back(thread([index](){
+    while(true){
+      this_thread::sleep_for(100ms);
+      planets[index].step(cam);
+    }
+  }));
 
 }

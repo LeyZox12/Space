@@ -18,7 +18,7 @@ class Player {
 public:
   Player(Point *p);
   void setPos(vec2 pos);
-  void update(Planet currentPlanet, vec2 mousepos, bool landed, float dt);
+  void update(Planet& currentPlanet, vec2 mousepos, bool landed, float dt);
   void setVel(vec2 vel);
   void addVel(vec2 vel);
   void draw(RenderTexture &window);

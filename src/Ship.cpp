@@ -1,4 +1,5 @@
 #include "Ship.h"
+#include "SFML/System/Angle.hpp"
 
 Ship::Ship()
 {
@@ -53,7 +54,7 @@ bool rectCircleColl(RectangleShape rect, CircleShape cir)
     return (abs(p.x - point.x) < rad + s.x * 0.5f && abs(p.y - point.y) < rad + s.y * 0.5f);
 }
 
-void Ship::update(vector<Planet> planets, float dt)
+void Ship::update(std::vector<Planet>& planets, float dt)
 {
     float rot = sprite.getRotation().asDegrees();
     float newRot = rot * 2.f - oldRot + steer * dt * dt;
@@ -165,6 +166,16 @@ void Ship::leftRotate()
 void Ship::rightRotate()
 {
     steer = 30.f;
+}
+
+Texture& Ship::getTexture()
+{
+    return spriteTexture;
+}
+
+RectangleShape Ship::getSprite()
+{
+    return sprite;
 }
 
 void Ship::draw(RenderTexture& window)

@@ -9,7 +9,7 @@ struct ContactContext;
 Planet::Planet(vec2 pos, float radius, float pixelSize, ElementRegistry &er) : radius(radius), er(er) {
 
   gridSize = radius * 4;
-  texture = sf::Texture(vec2u(gridSize, gridSize));
+  texture.resize(vec2u(gridSize, gridSize));
   bg.setSize(vec2(gridSize * pixelSize, gridSize * pixelSize));
   bg.setPosition(pos - bg.getSize() / 2.f);
   cellsInstances = std::vector<Element>(gridSize * gridSize, er.getElementById(AIR));
@@ -30,6 +30,11 @@ void Planet::executeOnGrid(std::function<void(int, int, Planet&)> task)
   }
 }
 
+sf::Texture& Planet::getTexture()
+{
+  return texture;
+}
+
 float Planet::getRadius()
 {
   return radius;
@@ -40,9 +45,14 @@ vec2 Planet::getPos()
   return bg.getPosition() + bg.getSize() / 2.f;
 }
 
+sf::RectangleShape Planet::getSprite()
+{
+  return bg;
+}
+
 int Planet::getGridSize() { return gridSize; }
 
-void Planet::display(sf::RenderWindow &window) 
+void Planet::display(sf::RenderTarget &window) 
 { 
   window.draw(bg); 
 }
