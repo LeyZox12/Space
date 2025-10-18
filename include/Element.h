@@ -2,6 +2,7 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <functional>
+#include "ext.hpp"
 
 using namespace sf;
 using namespace std;
@@ -26,28 +27,12 @@ struct TemperatureProfile
     float maxT = 5000.f;
 };
 
-class Element
+struct Element
 {
-    public:
-        int awake = 2;
-        Element(string displayName, int weight, bool hasPhysics, float fom, Color color);
-        Element(string displayName, int weight, bool hasPhysics, float fom, Color color, vector<function<void(ContactContext)>> behaviourOnContact);
-        string getName();
-        Color getColor();
-        int getId();
-        int getContactFunctionCount();
-        bool getHasPhysics();
-        int getWeight();
-        float getFom();
-        void shiftColor();
-        function<void(ContactContext)> getContactFunction(int index);
-        int id;
-    private:
-        string displayName;
-        Color color;
-        int weight;
-        bool hasPhysics;
-        float fom;
-        TemperatureProfile profile;
-        vector<function<void(ContactContext)>> behaviourOnContact;
+    int awake = 2;
+    glm::vec4 color;
+    int id;
+    int weight;
+    int hasPhysics;
+    float fom;
 };

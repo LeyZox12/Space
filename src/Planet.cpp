@@ -2,22 +2,27 @@
 #include "Element.h"
 #include "Item.hpp"
 #include "SFML/Graphics/RectangleShape.hpp"
+#include "ext.hpp"
+#include <chrono>
+#include <thread>
 #include <vector>
 
 struct ContactContext;
 
-Planet::Planet(vec2 pos, float radius, float pixelSize, ElementRegistry &er) : radius(radius), er(er) {
-
+Planet::Planet(vec2 pos, float radius) : radius(radius), ready(std::make_unique<std::atomic<int>>(0))
+{
   gridSize = radius * 4;
   texture.resize(vec2u(gridSize, gridSize));
   bg.setSize(vec2(gridSize * pixelSize, gridSize * pixelSize));
   bg.setPosition(pos - bg.getSize() / 2.f);
   cellsInstances = std::vector<Element>(gridSize * gridSize, er.getElementById(AIR));
   cells = std::vector<uint8_t>(gridSize * gridSize * 4, 0);
+  chunkSleeping = std::vector<bool>((gridSize/chunkSize) * (gridSize/chunkSize), false);
   for (int i = 0; i < gridSize * gridSize; i++) {
     cells[3 + i * 4] = 0;
   }
 }
+
 
 void Planet::executeOnGrid(std::function<void(int, int, Planet&)> task)
 {
@@ -54,17 +59,27 @@ int Planet::getGridSize() { return gridSize; }
 
 void Planet::display(sf::RenderTarget &window) 
 { 
+  texture.update(cells.data());
+  bg.setTexture(&texture);
   window.draw(bg); 
 }
 
-void Planet::step(Camera cam) {
+void Planet::step() {
+  return;
   clock_t start = clock();
   std::vector<uint8_t> buffer = cells;
   std::vector<Element> instanceBuffer = cellsInstances;
   std::vector<int> xs = std::vector<int>(gridSize);
   std::vector<int> ys = std::vector<int>(gridSize);
 
-  for (int i = 0; i < gridSize; i++) {
+  for(auto& pixel : pendingPixels)
+  {
+    setPixel(pixel.pos.x, pixel.pos.y, pixel.e, buffer, instanceBuffer);
+  }
+
+  pendingPixels.clear();
+
+  for (int i = 0; i < chunkSize; i++) {
     xs[i] = i;
   }
 
@@ -72,49 +87,75 @@ void Planet::step(Camera cam) {
 
   shuffle(xs);
   shuffle(ys);
-#pragma omp parrallel for
-  for (int i = 0; i < gridSize * gridSize; i++) {
-    int x, y;
-    x = xs[i % gridSize];
-    y = ys[i / gridSize];
-    Element e = getElement(x, y, instanceBuffer );
-    if(e.awake > 0){
-      e.awake--;
-      if (e.getHasPhysics()) {
-        updatePhysics(x, y, buffer, instanceBuffer, e);
-      }
-      for (int i = 0; i < e.getContactFunctionCount(); i++) {
-        auto f = e.getContactFunction(i);
-        executeOnAxis(
-            [this, &buffer, x, y, f, &instanceBuffer ](int xw, int yw) {
-              f(ContactContext(*this,
-                              getElement(xw, yw, instanceBuffer),
-                              buffer, instanceBuffer, er, x, y, xw, yw));
-            },
-            x, y);
-      }
-    }
+      for (int i = 0; i < gridSize * gridSize; i++) {
+        int x, y;
+        x = xs[i % gridSize];
+        y = ys[i / gridSize];
+        Element& e = getElement(x, y, instanceBuffer );
+        if(e.awake > 0){
+          e.awake--;
+          if (e.hasPhysics) {
+            updatePhysics(x, y, buffer, instanceBuffer, e);
+          }
+          /*
+          for (int i = 0; i < e.getContactFunctionCount(); i++) {
+            auto f = e.getContactFunction(i);
+            executeOnAxis(
+                [this, &buffer, x, y, f, &instanceBuffer ](int xw, int yw) {
+                  f(ContactContext(*this,
+                                  getElement(xw, yw, instanceBuffer),
+                                  buffer, instanceBuffer, er, x, y, xw, yw));
+                },
+                x, y);
+          }*/
+        }
   }
   cells = buffer;
   cellsInstances = instanceBuffer;
-  texture.update(cells.data());
-  bg.setTexture(&texture);
 }
 
 void Planet::updateTexture()
 {
 }
 
+vec2 Planet::getCellPos(float x, float y)
+{
+  float ratio = pixelSize;
+  int fx = floor((x-bg.getPosition().x)/ratio);
+  int fy = floor((y-bg.getPosition().y)/ratio); 
+  return vec2(fx, fy);
+}
+
+void shiftColor(glm::vec4& color)
+{
+    float shiftRatio =1.0 +  (rand()%100 / 400.f);
+    float grayScale = (0.2126f * (float)color.r+
+                      0.7152 * (float)color.g + 
+                      0.0722 * (float)color.b) * shiftRatio;
+
+    int r = color.r * shiftRatio;
+    int g = color.g * shiftRatio;
+    int b = color.b * shiftRatio;
+
+    if(r > 255) r = 255;
+    if(g > 255) g = 255;
+    if(b > 255) b = 255;
+    color = glm::vec4(r, g, b, color.a);
+}
+
 void Planet::setPixel(int x, int y, Element e)
 {
-  e.shiftColor();
   int index = x * 4 + y * gridSize * 4;
-  sf::Color col = e.getColor();
-  cells[index] = col.r;
-  cells[index+1] = col.g;
-  cells[index+2] = col.b;
-  cells[index+3] = col.a;
+  if (index < 0 || index >= gridSize * gridSize * 4)
+    return;
+  shiftColor(e.color);
+  glm::vec4 value = e.color;
+  cells[index] = value.r;
+  cells[index + 1] = value.g;
+  cells[index + 2] = value.b;
+  cells[index + 3] = value.a;
   cellsInstances[x + y * gridSize] = e;
+
 }
 
 void Planet::executeOnAxis(std::function<void(int, int)> task, int x, int y) {
@@ -175,9 +216,12 @@ void Planet::updatePhysics(int x, int y, std::vector<uint8_t> &buffer, std::vect
     }
   }
   // index = moves.size()-1;
-  if (moves.size() > 0 && dots[index].chance > element.getFom()) {
+  if (moves.size() > 0 && dots[index].chance > element.fom) {
     vec2 move = dots[index].move;
-    setPixel(x, y, getElement(x+move.x, y+move.y, instanceBuffer), buffer, instanceBuffer);
+    Element e2 = getElement(x+move.x, y+move.y, instanceBuffer);
+    e2.awake = 2;
+    element.awake = 2;
+    setPixel(x, y, e2, buffer, instanceBuffer);
     setPixel(x + move.x, y + move.y, element, buffer, instanceBuffer );
   }
 }
@@ -219,25 +263,37 @@ sf::Color Planet::getPixel(int x, int y, std::vector<uint8_t> &buffer) {
                buffer[index + 3]);
 }
 
-Element Planet::getElement(int x, int y, std::vector<Element>& instanceBuffer)
+Element& Planet::getElement(int x, int y, std::vector<Element>& instanceBuffer)
 {
   return instanceBuffer[x + y * gridSize];
 }
 
+Element& Planet::getElementAtfPos(float x, float y)
+{
+  float ratio = pixelSize;
+  int fx = floor((x-bg.getPosition().x)/ratio);
+  int fy = floor((y-bg.getPosition().y)/ratio); 
+  
+  if(fx < 0 || fy < 0 || fx >= gridSize || fy >= gridSize) return er.elements[0];
+  return cellsInstances[fx + fy*gridSize];
+}
+
 int Planet::getPixelId(int x, int y, std::vector<Element>& instanceBuffer )
 {
-  return instanceBuffer[x + y * gridSize].getId();
+  return instanceBuffer[x + y * gridSize].id;
 }
 
 void Planet::setPixel(int x, int y, Element e, std::vector<uint8_t> &buffer, std::vector<Element>& instanceBuffer ) {
   int index = x * 4 + y * gridSize * 4;
   if (index < 0 || index >= gridSize * gridSize * 4)
     return;
-  sf::Color value = e.getColor();
+  glm::vec4 value = e.color;
   buffer[index] = value.r;
   buffer[index + 1] = value.g;
   buffer[index + 2] = value.b;
   buffer[index + 3] = value.a;
+  e.awake = 2;
+  executeOnAxis([this, &instanceBuffer](int x, int y){instanceBuffer[x + y * gridSize].awake = 2;},x, y);
   instanceBuffer[x + y * gridSize] = e;
 }
 
@@ -259,5 +315,5 @@ bool Planet::isLighterPixel(Element e, int x, int y, std::vector<Element>& insta
 {
   if (y == gridSize - 1 || x == 0 || x == gridSize - 1)
     return false;
-  return getElement(x, y, instanceBuffer).getWeight() < e.getWeight();
+  return getElement(x, y, instanceBuffer).weight < e.weight;
 }

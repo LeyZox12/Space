@@ -17,24 +17,15 @@ struct ElementRegistry
     
     ElementRegistry()
     {
-        registerElement(Element("NONE_ERROR", 0, false, 0.f, Color(255, 0, 218)));
-    }
-
-    Element getElementByName(string name)
-    {
-        for(auto& e : elements)
-        {
-            if(e.getName() == name) return e;
-        }
-        return elements[0];
+        registerElement("NONE_ERROR", 0, false, 0.f, Color(255, 0, 218));
     }
 
     Element getElementByColor(Color color)
     {
         for(auto& e : elements)
-            if(e.getColor().r == color.r && 
-               e.getColor().g == color.g &&
-               e.getColor().b == color.b) return e;
+            if(e.color.r == color.r && 
+               e.color.g == color.g &&
+               e.color.b == color.b) return e;
         return elements[0];
     }
 
@@ -44,9 +35,18 @@ struct ElementRegistry
         return elements[id];
     }
 
-    void registerElement(Element e)
+    void registerElement(string name, int weight, bool hasPhysics, float fom, Color color)
     {
+        Element e;
+        e.weight = weight;
+        e.hasPhysics = hasPhysics;
+        e.fom = fom;
         e.id = elements.size();
+        e.color = glm::vec4(
+            (uint8_t)color.r,
+            (uint8_t)color.g,
+            (uint8_t)color.b,
+            (uint8_t)color.a);
         elements.emplace_back(e);
     }
 };

@@ -27,12 +27,19 @@ class Ship
         void update(vector<Planet>& planets, float dt);
         void leftRotate();
         void rightRotate();
-        void debugOnScreen(RenderWindow& window, float dt);
+        void debugOnScreen(vector<Planet>& planets, RenderWindow& window, float dt);
         void setPos(vec2 pos);
         void draw(RenderTexture& window);
         void emergencyStop();
         void toggleAdvancedDebug();
+        void setAcc(vec2 acc);
+        vec2 getAcc();
         void setThrottle(float val);
+        void toggleLanding();
+        vec2 getOldPos();
+        Angle getOldRot();
+        void setSteer(float angle);
+        void setRot(Angle angle);
         RectangleShape getSprite();
         bool getLanding();
         Texture& getTexture();
@@ -49,6 +56,7 @@ class Ship
         float accSpeed = 100.f;
         const float maxThrottle = 200.f;
         float steer = 0.f;
+        Image bitmap;
         float oldRot = 0.f;
         bool advancedDebug = false;
         bool brake = false;

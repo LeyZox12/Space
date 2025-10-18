@@ -1,0 +1,88 @@
+
+#version 460 core
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+struct Element{
+    int awake;
+    vec4 color;
+    int id;
+    int weight;
+    bool hasPhysics;
+    float fom;
+};
+layout(std430, binding = 0) buffer planet{
+    Element cells[];
+};
+
+layout(std430, binding = 1) buffer elementsbuff{
+    Element elements[];
+};
+
+uniform uint gridSize;
+
+uint getIndex(uint x, uint y)
+{
+    return x + gridSize * y;
+}
+
+void main(){
+    vec2 possibleMoves[8] = vec2[](
+        vec2(-1, 1),
+        vec2(0, 1),
+        vec2(1, 1),
+        vec2(-1, -1),
+        vec2(0, -1),
+        vec2(1, -1),
+        vec2(1, 0),
+        vec2(-1, 0)
+    );
+    uint x = gl_GlobalInvocationID.x;
+    uint y = gl_GlobalInvocationID.y;
+    if(cells[getIndex(x, y+1)].id < 2)
+    {
+        Element buff = cells[getIndex(x, y)];
+        cells[getIndex(x, y)] = elements[1];
+        cells[getIndex(x, y+1)] = buff;
+    }
+    /*uint index = idx + idy * gridSize;
+    Element e = cells[index];
+    vec2 moves[8];
+    int moveCount = 0;
+    float chances[8];
+    if(e.hasPhysics)
+    {
+        vec2 center = vec2(gridSize / 2.f, gridSize / 2.f);
+        vec2 diff = center - vec2(x, y);
+        float dist = hypot(diff.x, diff.y);
+        for (int i = 0; i < 8; i++) {
+            Element e = cells[getIndex(x+possibleMoves[i].x, y+possibleMoves[i].y)];
+            if(e.id < 2 || e.weight < cells[getIndex(x, y)].weight)
+            {
+                moves[moveCount] = possibleMoves[i];
+                moveCount += 1;
+            }
+        }
+        if (dist > 0.0)
+            diff /= dist;
+        
+        for (int i = 0; i < moveCount; i++) {
+            vec2 diff2 = moves[i];
+            float dist2 = hypot(diff2.x, diff2.y);
+            if (dist2 > 0.0)
+            diff2 /= dist2;
+            chances[i] = (dot(diff, diff2) + 1.0) / 2.0;
+        }
+
+        for(int i = 0; i < moveCount; i++){
+            if (chances[index] > element.fom) {
+                vec2 move = moves[index];
+                Element e2 = buff[getIndex(x+move.x, y+move.y)];
+                e2.awake = 2;
+                element.awake = 2;
+                cells[getIndex(x, y)] = e2;
+                cells[getIndex(x+move.x, y+move.y)] = element; 
+                break;
+            }
+        }
+    }*/
+};
+

@@ -1,9 +1,9 @@
-#include <SFML/Graphics.hpp>
-#include <vector>
-#include "Element.h"
-#include <functional>
+#pragma once
+#include "ElementRegistry.h"
 
-using namespace std;
-using namespace sf;
+inline const float pixelSize = 5.f;
+inline ElementRegistry er;
 
-typedef Vector2f vec2;
+inline void init()
+{
+}

@@ -1,5 +1,12 @@
 #include "Ship.h"
+#include "Item.hpp"
+#include "SFML/Graphics/Color.hpp"
+#include "SFML/Graphics/PrimitiveType.hpp"
+#include "SFML/Graphics/RectangleShape.hpp"
+#include "SFML/Graphics/Vertex.hpp"
+#include "SFML/Graphics/VertexArray.hpp"
 #include "SFML/System/Angle.hpp"
+#include "helpers.hpp"
 
 Ship::Ship()
 {
@@ -13,6 +20,7 @@ Ship::Ship()
     rightLandingGear.setRadius(landRad);
     leftLandingGear.setOrigin({landRad, landRad});
     rightLandingGear.setOrigin({landRad, landRad});
+    bitmap = spriteTexture.copyToImage();
 }
 
 void Ship::accelerate(float dt)
@@ -54,21 +62,19 @@ bool rectCircleColl(RectangleShape rect, CircleShape cir)
     return (abs(p.x - point.x) < rad + s.x * 0.5f && abs(p.y - point.y) < rad + s.y * 0.5f);
 }
 
+void Ship::setSteer(float angle)
+{
+    steer = angle;
+}
+
+void Ship::toggleLanding()
+{
+    landing = !landing;
+}
+
 void Ship::update(std::vector<Planet>& planets, float dt)
 {
-    float rot = sprite.getRotation().asDegrees();
-    float newRot = rot * 2.f - oldRot + steer * dt * dt;
-    sprite.setRotation(degrees(newRot));    
-    steer *= 0.9f;
-
     vec2 pos = sprite.getPosition();
-    vec2 accDir = vec2(cos(sprite.getRotation().asRadians() - PI/2.f), sin(sprite.getRotation().asRadians() - PI/2.f));
-    vel += accDir * throttle;
-    vec2 newPos = pos * 2.f - oldPos + vel * dt * dt;
-    vel -= accDir * throttle;
-    sprite.setPosition(newPos);
-    oldPos = pos;
-    oldRot = rot;
     auto it = min_element(planets.begin(), planets.end(), [pos](auto& p1, auto& p2)
             {
                 return hypot(p1.getPos().x - pos.x, p1.getPos().y - pos.y) < 
@@ -76,35 +82,39 @@ void Ship::update(std::vector<Planet>& planets, float dt)
             });
     int index = distance(planets.begin(), it);
     currentPlanetIndex = index;
-    return;
-    /*
-    vec2 pos = sprite.getPosition();
-    vec2 diff = planets[index].getPos() - sprite.getPosition();
-    //float planetDist = hypot(diff.x, diff.y) - planets[index].getRad();
-    vec2 leftDiff = leftLandingGear.getPosition() - planets[index].getPos();
-    vec2 rightDiff = rightLandingGear.getPosition() - planets[index].getPos();
-    float leftDistFromPlanet = hypot(leftDiff.x, leftDiff.y);
-    float rightDistFromPlanet = hypot(rightDiff.x, rightDiff.y);
-    //float rad = planets[index].getRad();
+
+    Planet& p = planets[index];
     float angle = sprite.getRotation().asRadians();
     vec2 straight = vec2(cos(angle), sin(angle));
-    
-    float trueDist = hypot(diff.x, diff.y);
-    if(trueDist > 0.f)
-        diff /= trueDist;
-    float dot = straight.x * diff.x + straight.y * diff.y;
-    diff *= trueDist;
-    if(planetDist < 200.f && dot < 0.1 && dot > -0.1)landing = true;
-    else landing = false;
-    if(landing && landed == false)
+
+    if(landing && !landed)
     {
-        leftLandingDist++;
-        rightLandingDist++;
-        if(leftDistFromPlanet < rad || rightDistFromPlanet < rad)
+        int count = 0;
+        vec2 p1 = leftLandingGear.getPosition();
+        int n1 = planets[index].getElementAtfPos(p1.x, p1.y).id;
+        if(n1 > 1)
+        {
+            count++;
+        }
+        else
+            leftLandingDist++;
+        vec2 p2 = rightLandingGear.getPosition();
+        int n2 = planets[index].getElementAtfPos(p2.x, p2.y).id;
+        if(n2 > 1)
+        {
+            count++;
+        }
+        else
+            rightLandingDist++;
+        if(count == 2)
+        {
+            landed = true;
+        }
+        /*if(leftDistFromPlanet < rad || rightDistFromPlanet < rad)
         {
             landed = true;
             landing = false;
-        }
+        }*/
     }
     else if(!landing)
     {
@@ -113,7 +123,71 @@ void Ship::update(std::vector<Planet>& planets, float dt)
         if(leftLandingDist < 0.f)leftLandingDist = 0.f;
         if(rightLandingDist < 0.f)rightLandingDist = 0.f;
     }
-    if(landed && leftDistFromPlanet > rad) leftLandingDist++;
+
+    if(landed) return;
+
+    float rot = sprite.getRotation().asDegrees();
+    float newRot = rot * 2.f - oldRot + steer * dt * dt;
+    sprite.setRotation(degrees(newRot));    
+    steer *= 0.9f;
+
+    vec2 accDir = vec2(cos(sprite.getRotation().asRadians() - PI/2.f), sin(sprite.getRotation().asRadians() - PI/2.f));
+    vel += accDir * throttle;
+    vec2 newPos = pos * 2.f - oldPos + vel * dt * dt;
+    vel -= accDir * throttle;
+    sprite.setPosition(newPos);
+    oldPos = pos;
+    oldRot = rot;
+    /*int size = 30;
+    
+
+    for(int i = -size; i < size; i++)
+    for(int j = -size; j < size; j++)
+    {
+        vec2 pos = vec2(j, i) * pixelSize + vec2(pixelSize*size/2.f, 0);
+        float angle = sprite.getRotation().asRadians();
+        pos = vec2(pos.x * cos(angle) - pos.y * sin(angle),
+                    pos.y * cos(angle) + pos.x * sin(angle));
+        pos += sprite.getPosition();
+        pos = vec2(floor(pos.x/pixelSize)*pixelSize , floor((pos.y-pixelSize*size/2.f)/pixelSize)*pixelSize);
+        pos += vec2(pixelSize * 0, pixelSize*size/2.f);
+        vec2 ratio = vec2(bitmap.getSize().x / (sprite.getSize().x), bitmap.getSize().y / sprite.getSize().y); 
+        vec2 texPos = vec2(floor((j+size)*ratio.x*pixelSize), floor((i+size)*ratio.y*pixelSize));
+        if(texPos.x > 0.f && texPos.x < bitmap.getSize().x && texPos.y > 0.f && texPos.y < bitmap.getSize().y && bitmap.getPixel({texPos.x, texPos.y}) != Color(0, 0, 0, 0))
+        {
+            string name = planets[currentPlanetIndex].getElementAtfPos(pos.x, pos.y).getName();
+            if(name != "NONE_ERROR" && name != "Air")
+            {
+                vec2 diff = sprite.getPosition() - oldPos;
+                sprite.setPosition(oldPos);
+                oldPos += diff; 
+                sprite.setRotation(degrees(oldRot));
+            }
+        }
+    }*/
+    checkCollision(sprite, p,vec2(0.f, 0.f), [this, &planets](CollisionCallbackContext ctx)
+    {
+        if(ctx.collided)
+        {
+            vec2 pos = planets[currentPlanetIndex].getCellPos(ctx.hitPos.x,ctx.hitPos.y);
+            planets[currentPlanetIndex].setPixel(pos.x, pos.y, er.getElementById(ITEMID::AIR));
+            return;
+            vec2 diff = sprite.getPosition() - oldPos;
+            sprite.setPosition(oldPos);
+            oldPos += diff; 
+            sprite.setRotation(degrees(oldRot));
+        }
+    });
+
+    //vec2 pos = sprite.getPosition();
+    /*vec2 diff = planets[index].getPos() - sprite.getPosition();
+    float planetDist = hypot(diff.x, diff.y) - planets[index].getRadius();
+    vec2 leftDiff = leftLandingGear.getPosition() - planets[index].getPos();
+    vec2 rightDiff = rightLandingGear.getPosition() - planets[index].getPos();
+    float leftDistFromPlanet = hypot(leftDiff.x, leftDiff.y);
+    float rightDistFromPlanet = hypot(rightDiff.x, rightDiff.y);
+    //float rad = planets[index].getRad();*/
+    /*if(landed && leftDistFromPlanet > rad) leftLandingDist++;
     else if(landed && rightDistFromPlanet > rad) rightLandingDist++;
     for(auto& planet : planets)
     {
@@ -130,21 +204,6 @@ void Ship::update(std::vector<Planet>& planets, float dt)
     {
         return;
     }
-
-    //rotation update
-    float rot = sprite.getRotation().asDegrees();
-    float newRot = rot * 2.f - oldRot + steer * dt * dt;
-    sprite.setRotation(degrees(newRot));    
-    steer *= 0.9f;
-    //position update
-    vec2 accDir = vec2(cos(sprite.getRotation().asRadians() - PI/2.f), sin(sprite.getRotation().asRadians() - PI/2.f));
-    vel += accDir * throttle;
-    vec2 newPos = pos * 2.f - oldPos + vel * dt * dt;
-    vel -= accDir * throttle;
-    sprite.setPosition(newPos);
-    oldPos = pos;
-    oldRot = rot;
-
     //planet / ship collision
     /*CircleShape planet(planets[index].getRad());
     planet.setPosition(planets[index].getPos());
@@ -171,6 +230,31 @@ void Ship::rightRotate()
 Texture& Ship::getTexture()
 {
     return spriteTexture;
+}
+
+vec2 Ship::getOldPos()
+{
+    return oldPos;
+}
+
+void Ship::setAcc(vec2 acc)
+{
+    this->vel = acc;
+}
+
+vec2 Ship::getAcc()
+{
+    return vel;
+}
+
+Angle Ship::getOldRot()
+{
+    return sf::degrees(oldRot);
+}
+
+void Ship::setRot(Angle angle)
+{
+    sprite.setRotation(angle);
 }
 
 RectangleShape Ship::getSprite()
@@ -203,7 +287,7 @@ void Ship::draw(RenderTexture& window)
     window.draw(sprite);
 }
 
-void Ship::debugOnScreen(RenderWindow& window, float dt)
+void Ship::debugOnScreen(vector<Planet>& planets, RenderWindow& window, float dt)
 {
     Font f("res/font.ttf");
     Text t(f, "", 24);
@@ -211,7 +295,7 @@ void Ship::debugOnScreen(RenderWindow& window, float dt)
 
     vec2 diff = sprite.getPosition() - oldPos;
     float rotDiff = -sprite.getRotation().asDegrees() - oldRot;
-    string debugStr = "pos: \nx:" + format("{:.1f}",sprite.getPosition().x) + "\ny:" + format("{:.1f}",sprite.getPosition().y) + "\nthrottle:" + format("{:.1f}",throttle) + "\nsteer:" + format("{:.1f}",steer) + "\nmag:" + format("{:.1f}", hypot(diff.x, diff.y)) + "\n";
+    string debugStr = "fps:" + format("{:.1f}", 1.f / dt) + "\npos: \nx:" + format("{:.1f}",sprite.getPosition().x) + "\ny:" + format("{:.1f}",sprite.getPosition().y) + "\nthrottle:" + format("{:.1f}",throttle) + "\nsteer:" + format("{:.1f}",steer) + "\nmag:" + format("{:.1f}", hypot(diff.x, diff.y)) + "\n";
     if(brake)
     {
         debugStr += "EMERGENCY BRAKE ON\n";
@@ -244,6 +328,17 @@ void Ship::debugOnScreen(RenderWindow& window, float dt)
             window.draw(line);
             brake = false;
         }
+        line[0].color = Color::Green;
+        line[1].color = Color::Green;
+
+
+        checkCollision(sprite, planets[currentPlanetIndex], vec2(0.f, 0.f), [this, &window](CollisionCallbackContext ctx)
+        {
+            RectangleShape pixel({pixelSize, pixelSize});
+            pixel.setFillColor(Color::Green);
+            pixel.setPosition(ctx.hitPos);
+            window.draw(pixel);
+        });
     }
 }
 

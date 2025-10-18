@@ -1,5 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include <memory>
 #include <vector>
 #include "Element.h"
 #include "ElementRegistry.h"
@@ -9,7 +10,10 @@
 #include "ContactContext.hpp"
 #include "Camera.hpp"
 #include <functional>
-
+#include "ElementRequest.hpp"
+#include <thread>
+#include "globals.hpp"
+#include <atomic>
 
 typedef sf::Vector2f vec2;
 typedef sf::Vector2u vec2u;
@@ -20,8 +24,8 @@ typedef sf::Vector2u vec2u;
 class Planet
 {
     public:
-        Planet(vec2 pos, float radius, float pixelSize, ElementRegistry& er);
-        void step(Camera cam);
+        Planet(vec2 pos, float radius);
+        void step();
         void executeOnAxis(std::function<void(int, int)> task, int x, int y);
         void display(sf::RenderTarget& window);
         void updatePhysics(int x, int y, std::vector<uint8_t>& buffer, std::vector<Element>& instanceBuffer, Element element);
@@ -32,26 +36,32 @@ class Planet
         sf::Color getPixel(int x, int y, std::vector<uint8_t>& buffer);
         void setPixel(int x, int y, Element e, std::vector<uint8_t>& buffer, std::vector<Element>& instanceBuffer );
         void setPixel(int x, int y, Element e);
-        Element getElement(int x, int y, std::vector<Element>& instanceBuffer);
-        int getPixelId(int x, int y, std::vector<Element>& instanceBuffer );
-        int getGridSize();
+        Element& getElement(int x, int y, std::vector<Element>& instanceBuffer);
+        int getPixelId(int x, int y, std::vector<Element>& instanceBuffer);
+        vec2 getCellPos(float x, float y);
+        unsigned int getGridSize();
         bool getSandPixel(int x, int y);
         bool getWaterPixel(int x, int y);
         vec2 getPos();
         sf::Texture& getTexture();
         void executeOnGrid(std::function<void(int, int, Planet&)> task);
         bool getAirPixel(int x, int y, std::vector<uint8_t>& buffer);
+        Element& getElementAtfPos(float x, float y);
         bool isLighterPixel(Element e, int x, int y, std::vector<Element>& instanceBufferinstanceBuffer );
         bool doneUpdating = true;
         sf::RectangleShape getSprite();
-    private:
-        ElementRegistry& er;
-        int gridSize = 0;
-        float radius;
-        sf::Texture texture;
-        sf::RectangleShape bg;
         std::vector<Element> cellsInstances;
         std::vector<uint8_t> cells;
+    private:
+        const int chunkSize = 256;
+        unsigned int gridSize = 0;
+        float radius;
+
+        std::unique_ptr<std::atomic<int>> ready = 0;
+        sf::Texture texture;
+        sf::RectangleShape bg;
+        std::vector<bool> chunkSleeping;
+        std::vector<ElementRequest> pendingPixels;
         struct Move
         {
             Move(vec2 move, float chance):move(move), chance(chance){}

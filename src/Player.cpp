@@ -1,4 +1,5 @@
 #include "Player.h"
+#include "helpers.hpp"
 
 Player::Player(Point *p) : point(p) {
   if (!baseTexture.loadFromFile("res/player/base.png"))
@@ -34,6 +35,7 @@ void Player::setPoint(Point *p) { point = p; }
 void Player::update(Planet& currentPlanet, vec2 mousepos, bool landed,
                     float dt) { // TODO rotate player according to mouse using
                                 // rotVel if not landed;
+  this->currentPlanet = &currentPlanet;
   vec2 rotated = rotateMouse(mousepos, baseSprite.getPosition(),
                              -baseSprite.getRotation().asRadians());
   int xScale = rotated.x < baseSprite.getPosition().x ? -1 : 1;
@@ -45,21 +47,13 @@ void Player::update(Planet& currentPlanet, vec2 mousepos, bool landed,
     diff /= dist;
   if(landed)
   {
-    /*point->setAcc(999.8f * -diff);
+    point->setAcc(999.8f * -diff);
     float angle = atan2(diff.y, diff.x) + PI;
     baseSprite.setRotation(sf::radians(angle - PI / 2.f));
     eyeSprite.setRotation(sf::radians(angle - PI / 2.f));
-    float minDist = currentPlanet.getRad() + baseSprite.getSize().y / 2.f;
-    point->addAcc(9.8f * vec2(cos(angle), sin(angle)));
-    if (dist < minDist) {
-      vec2 newPos = currentPlanet.getPos() +
-                    vec2(cos(angle - PI), sin(angle - PI)) * minDist;
-      point->setPos(newPos, true);
-      point->setOldPos(newPos);
-      point->setAcc(vec2(0, 0));
-    }
+    point->setAcc(998.f * vec2(cos(angle), sin(angle)));
     baseSprite.setPosition(point->getPos());
-    eyeSprite.setPosition(point->getPos() -
+    /*eyeSprite.setPosition(point->getPos() -
                           vec2(cos(angle) * baseSprite.getSize().y * 0.15f,
                               sin(angle) * baseSprite.getSize().y * 0.15f));*/
   }
@@ -75,6 +69,17 @@ void Player::update(Planet& currentPlanet, vec2 mousepos, bool landed,
                               sin(angle) * baseSprite.getSize().y * 0.15f));
 
   }
+  
+    checkCollision(baseSprite, currentPlanet, vec2(0, 0), [*this](CollisionCallbackContext ctx)
+    {
+        if(ctx.collided)
+        {
+          
+            vec2 diff = point->getPos() - ctx.hitPos;
+            diff /= hypot(diff.x, diff.y);
+            point->move( diff, false); 
+        }
+    });
   vec2 pos = point->getPos();
 }
 
@@ -83,6 +88,13 @@ void Player::addVel(vec2 vel) { this->point->addAcc(vel); }
 void Player::draw(sf::RenderTexture &window) {
   window.draw(eyeSprite);
   window.draw(baseSprite);
+      /*checkCollision(baseSprite, *currentPlanet,vec2(0.f, 0), [this, &window](CollisionCallbackContext ctx)
+      {
+          RectangleShape pixel({5.f, 5.f});
+          pixel.setFillColor(Color::Green);
+          pixel.setPosition(ctx.hitPos);
+          window.draw(pixel);
+      });*/
 }
 
 void Player::drawUI(sf::RenderWindow &window) {}

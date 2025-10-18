@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 #include <cmath>
 #include <iostream>
+#include "helpers.hpp"
 #define PI 3.141592653
 
 using namespace sf;
@@ -30,6 +31,7 @@ public:
   void move(vec2 delta);
 
 private:
+  Planet* currentPlanet;
   Texture baseTexture;
   Texture eyeTexture;
   RectangleShape eyeSprite;
