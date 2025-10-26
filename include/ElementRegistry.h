@@ -1,6 +1,7 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include <vector>
+#include "ContactContext.hpp"
 #include "Element.h"
 #include <functional>
 #include "Item.hpp"
@@ -22,10 +23,10 @@ struct ElementRegistry
 
     Element getElementByColor(Color color)
     {
-        for(auto& e : elements)
+        /*for(auto& e : elements)
             if(e.color.r == color.r && 
                e.color.g == color.g &&
-               e.color.b == color.b) return e;
+               e.color.b == color.b) return e;*/
         return elements[0];
     }
 
@@ -38,15 +39,34 @@ struct ElementRegistry
     void registerElement(string name, int weight, bool hasPhysics, float fom, Color color)
     {
         Element e;
+        e.name = name;
         e.weight = weight;
         e.hasPhysics = hasPhysics;
-        e.fom = fom;
+        e.awake = 2;
         e.id = elements.size();
-        e.color = glm::vec4(
+        e.color = sf::Color(
             (uint8_t)color.r,
             (uint8_t)color.g,
             (uint8_t)color.b,
             (uint8_t)color.a);
+        e.contactFunction = function<void(ContactContext ctx)>([](ContactContext ctx){});
+        elements.emplace_back(e);
+    }
+
+    void registerElement(string name, int weight, bool hasPhysics, float fom, Color color, function<void(ContactContext)> contactFunction)
+    {
+        Element e;
+        e.name = name;
+        e.weight = weight;
+        e.hasPhysics = hasPhysics;
+        e.awake = 2;
+        e.id = elements.size();
+        e.color = sf::Color(
+            (uint8_t)color.r,
+            (uint8_t)color.g,
+            (uint8_t)color.b,
+            (uint8_t)color.a);
+        e.contactFunction = contactFunction;
         elements.emplace_back(e);
     }
 };

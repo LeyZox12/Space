@@ -29,10 +29,14 @@ struct TemperatureProfile
 
 struct Element
 {
+
+    Color color;
     int awake = 2;
-    glm::vec4 color;
     int id;
     int weight;
     int hasPhysics;
     float fom;
+    string name;
+    sf::Vector2f vel;
+    function<void(ContactContext)> contactFunction;
 };

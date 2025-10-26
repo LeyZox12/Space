@@ -41,7 +41,7 @@ void Player::update(Planet& currentPlanet, vec2 mousepos, bool landed,
   int xScale = rotated.x < baseSprite.getPosition().x ? -1 : 1;
   baseSprite.setScale(vec2(xScale, 1));
   eyeSprite.setScale(vec2(xScale, 1));
-  vec2 diff = point->getPos() - currentPlanet.getPos();
+  vec2 diff = point->getPos() - currentPlanet.getSprite().getPosition();
   float dist = hypot(diff.x, diff.y);
   if (dist > 0.f)
     diff /= dist;

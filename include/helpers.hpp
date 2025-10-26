@@ -22,7 +22,7 @@ struct CollisionCallbackContext
 
 inline void checkCollision(sf::RectangleShape sprite, Planet& p, vec2 offset, std::function<void(CollisionCallbackContext)> callback)
 {
-    sf::Image bitmap = sprite.getTexture()->copyToImage();
+    /*sf::Image bitmap = sprite.getTexture()->copyToImage();
     int size =std::max(sprite.getSize().y, sprite.getSize().x) / pixelSize ;
     for(int i = 0; i < size; i++)
     for(int j = 0; j < size; j++)
@@ -52,5 +52,5 @@ inline void checkCollision(sf::RectangleShape sprite, Planet& p, vec2 offset, st
                 callback(CollisionCallbackContext(false, pos));
         }
         //callback(CollisionCallbackContext(false, pos));
-    }
+    }*/
 }

@@ -77,8 +77,8 @@ void Ship::update(std::vector<Planet>& planets, float dt)
     vec2 pos = sprite.getPosition();
     auto it = min_element(planets.begin(), planets.end(), [pos](auto& p1, auto& p2)
             {
-                return hypot(p1.getPos().x - pos.x, p1.getPos().y - pos.y) < 
-                       hypot(p2.getPos().x - pos.x, p2.getPos().y - pos.y); 
+                return hypot(p1.getSprite().getPosition().x - pos.x, p1.getSprite().getPosition().y - pos.y) < 
+                       hypot(p2.getSprite().getPosition().x - pos.x, p2.getSprite().getPosition().y - pos.y); 
             });
     int index = distance(planets.begin(), it);
     currentPlanetIndex = index;
@@ -89,7 +89,7 @@ void Ship::update(std::vector<Planet>& planets, float dt)
 
     if(landing && !landed)
     {
-        int count = 0;
+        /*int count = 0;
         vec2 p1 = leftLandingGear.getPosition();
         int n1 = planets[index].getElementAtfPos(p1.x, p1.y).id;
         if(n1 > 1)
@@ -169,13 +169,13 @@ void Ship::update(std::vector<Planet>& planets, float dt)
     {
         if(ctx.collided)
         {
-            vec2 pos = planets[currentPlanetIndex].getCellPos(ctx.hitPos.x,ctx.hitPos.y);
-            planets[currentPlanetIndex].setPixel(pos.x, pos.y, er.getElementById(ITEMID::AIR));
+            /*vec2 pos = planets[currentPlanetIndex].getCellPos(ctx.hitPos.x,ctx.hitPos.y);
+            planets[currentPlanetIndex].setPixelOnUpdate(pos.x, pos.y, er.getElementById(ITEMID::AIR));
             return;
             vec2 diff = sprite.getPosition() - oldPos;
             sprite.setPosition(oldPos);
             oldPos += diff; 
-            sprite.setRotation(degrees(oldRot));
+            sprite.setRotation(degrees(oldRot));*/
         }
     });
 
