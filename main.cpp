@@ -1,5 +1,6 @@
 #include "ElementRegistry.h"
 #include "SFML/Graphics/Color.hpp"
+#include "SFML/Graphics/Rect.hpp"
 #include "SFML/Window/Sensor.hpp"
 #include "glad/glad.h"
 #include "SFML/Graphics/RectangleShape.hpp"
@@ -10,6 +11,7 @@
 #include <SFML/Graphics.hpp>
 #include <algorithm>
 #include <ctime>
+#include "Parallax.h"
 #include <iostream>
 #include <thread>
 #include <vector>
@@ -46,6 +48,7 @@ Map map(vec2(window.getSize().x - 300, window.getSize().y),
         vec2(300, 300));
 Shader postProcessing;
 Shader collision;
+Parallax parallax;
 PointEngine pe;
 
 int mode = Mode::SHIP;
@@ -57,64 +60,6 @@ const int STARSAMOUNT = 100;
 const float PLAYER_SPEED = 5.f;
 const float SEGMENT_SIZE = 10.f;
 const float GRAVITY_MULT = 988.0f;
-
-const char* computeStepSrc =R"(
-#version 460 core
-layout(local_size_x = 8, local_size_y = 1, local_size_z = 1) in;
-struct Element{
-    int awake;
-    vec4 color;
-    int id;
-    int weight;
-    int hasPhysics;
-    float fom;
-};
-layout(std430, binding = 0) buffer planet{
-    Element cells[];
-};
-
-layout(std430, binding = 1) buffer elementsbuff{
-    Element elements[];
-};
-
-uniform uint gridSize;
-
-uint getIndex(uint x, uint y)
-{
-    return x + gridSize * y;
-}
-
-uint isIsBounds(uint x, uint y)
-{
-  if(x > 0 && x < gridSize && y > 0 && y < gridSize) return 1;
-  else
-  return 0;
-}
-
-void main(){
-    vec2 possibleMoves[8] = vec2[](
-        vec2(-1, 1),
-        vec2(0, 1),
-        vec2(1, 1),
-        vec2(-1, -1),
-        vec2(0, -1),
-        vec2(1, -1),
-        vec2(1, 0),
-        vec2(-1, 0)
-    );
-    uint x = gl_GlobalInvocationID.x;
-    Element buff = cells[x];
-    buff.color = vec4(255.0, 255.0, 255.0, 255.0);
-    cells[x] = buff;
-};
-
-
-)";
-GLuint stepShader;
-GLuint stepProgram;
-GLuint elementRegistrySSBO;
-GLuint cellsSSBO;
-GLuint colorsSSBO;
 
 void start();
 void inputManager(float dt, Player &player);
@@ -135,7 +80,8 @@ int main() {
         vec2(Mouse::getPosition(window).x, Mouse::getPosition(window).y);
     vec2 mouseposWorld =
         window.mapPixelToCoords(Vector2i(mousepos.x, mousepos.y));
-    static float dt = 1.f;
+    static float dt = 0.016f;
+    dt= deltaClock.restart().asSeconds();
     while (optional<Event> e = window.pollEvent()) {
       if (e->is<Event::Closed>())
         window.close();
@@ -211,40 +157,21 @@ int main() {
 
 
     static clock_t start = clock();
-    if(clock() - start > 100)
+    if(clock() - start > 50)
     {
       for(auto& p : planets){
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, cellsSSBO);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, cellsSSBO);
-        size_t byteSizeCells = sizeof(Element) * p.getGridSize() * p.getGridSize();
-        glBufferData(GL_SHADER_STORAGE_BUFFER, byteSizeCells, p.cellsInstances.data(), GL_DYNAMIC_DRAW);
-        glUseProgram(stepProgram);
-        glUniform1ui(glGetUniformLocation(stepProgram, "gridSize"), p.getGridSize());
-        GLuint groupsX = (p.getGridSize() + 7) / 8;
-        GLuint groupsY = ceil(p.getGridSize()*p.getGridSize() / 8.f);
-        glDispatchCompute(groupsY, 1, 1);
-        glMemoryBarrier(GL_ALL_BARRIER_BITS);
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, cellsSSBO);
-        Element* ptsUpdated = (Element*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, byteSizeCells, GL_MAP_READ_BIT);
-        p.cellsInstances = vector<Element>(ptsUpdated, ptsUpdated + byteSizeCells/sizeof(Element));
-        for(int i = 0; i < p.getGridSize() * p.getGridSize(); i++)
-        {
-          Element e = p.cellsInstances[i];
-          p.cells[i * 4] = e.color.r;
-          p.cells[i * 4+1] = e.color.g;
-          p.cells[i * 4+2] = e.color.b;
-          p.cells[i * 4+3] = e.color.a;
-        }
-        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+        p.step(ship.getPos());
       }
       start = clock();
     }
+    parallax.update(cam.getPos());
     windowTex.clear();
     map.update(window, ship.getPos(), dt);
     ship.update(planets, dt);
     window.clear(Color::Black);
     windowTex.clear();
-    for (auto &planet : planets)
+    parallax.display(windowTex);
+    for(auto& planet : planets)
       planet.display(windowTex);
     ship.draw(windowTex);
     if (mode == Mode::PLAYER) {
@@ -264,6 +191,8 @@ int main() {
     postProcessing.setUniform("u_resolution",
                               vec2(window.getSize().x, window.getSize().y));
     window.draw(bg, &postProcessing);
+    for (auto &planet : planets)
+      planet.visualDebug(window);
     /*Texture t;
     t.update(img);
     bg.setTexture(&t);
@@ -272,7 +201,7 @@ int main() {
     ship.debugOnScreen(planets, window, dt);
     // pe.display(window, Color::Blue);*/
     window.display();
-    dt= deltaClock.restart().asSeconds();
+    //dt = 1.f / 60.f;
   }
   return 0;
 }
@@ -280,39 +209,12 @@ int main() {
 void start() {
   initElements();
 
-  glGenBuffers(1, &cellsSSBO);
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, cellsSSBO);
-
-  glGenBuffers(1, &colorsSSBO);
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, colorsSSBO);
-
-  glGenBuffers(1, &elementRegistrySSBO);
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, elementRegistrySSBO);
-
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, elementRegistrySSBO);
-  glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(Element) * er.elements.size(), er.elements.data(), GL_DYNAMIC_DRAW);
-
-  stepProgram = glCreateProgram();
-  stepShader = glCreateShader(GL_COMPUTE_SHADER);
-  glShaderSource(stepShader, 1, &computeStepSrc, NULL);
-  glCompileShader(stepShader);
-  GLint isCompiled = 0;
-  glGetShaderiv(stepShader, GL_COMPILE_STATUS, &isCompiled);
-  if(isCompiled == GL_FALSE)
-  {
-    GLint maxLength = 0;
-    glGetShaderiv(stepShader, GL_INFO_LOG_LENGTH, &maxLength);
-    std::vector<GLchar> errorLog(maxLength);
-    glGetShaderInfoLog(stepShader, maxLength, &maxLength, &errorLog[0]);
-    for(auto& c : errorLog) cout << c;
-    glDeleteShader(stepShader);
-    return;
-  };
-  glAttachShader(stepProgram, stepShader);
-  glLinkProgram(stepProgram);
+  parallax.addOnTop("res/stars3.png", 0.3f, 1.f);
+  parallax.addOnTop("res/stars2.png", 0.6f, 1.f);
+  parallax.addOnTop("res/stars.png", 1.0f, 1.f);
 
   ship.setPos(vec2(256, 256));
-  window.setFramerateLimit(60);
+  window.setFramerateLimit(240);
   windowTex.resize({window.getSize().x, window.getSize().y});
   bg.setSize(vec2(window.getSize().x, window.getSize().y));
   if (!postProcessing.loadFromFile("res/postProcessing.frag",
@@ -332,7 +234,7 @@ void start() {
   addPlanet(vec2(700, 200), 60.f);
   //addPlanet(vec2(-600, 200), 60.f);
   //addPlanet(vec2(0, -500), 100.f);
-  //addPlanet(vec2(-3000, 2000), 600.f);
+  addPlanet(vec2(-3000, 2000), 600.f);
   //addPlanet(vec2(100200, 0), 10000.f);
 }
 
@@ -435,13 +337,6 @@ void addPlanet(vec2 pos, float radius) {
     else if(hypot(p.getGridSize()/2.f - x, p.getGridSize()/2.f- y) < p.getRadius()/1.5f) p.setPixel(x, y, er.getElementById(ITEMID::STONE));
     else if(hypot(p.getGridSize()/2.f - x, p.getGridSize()/2.f- y) < p.getRadius()) p.setPixel(x, y, (rand()%10 == 0 ? er.getElementById(ITEMID::SAND) : er.getElementById(ITEMID::SAND)));
   });
-  int index = planets.size()-1;
-  threads.emplace_back(thread([index](){
-    while(true){
-      this_thread::sleep_for(100ms);
-      planets[index].step();
-    }
-  }));
 }
 
 void initElements()
@@ -476,7 +371,15 @@ void initElements()
        1,
        true,
        12.5,
-       Item::LAVA
+       Item::LAVA,
+       [](ContactContext ctx)
+       {
+        /*if(ctx.contact.name == "Water")
+        {
+          ctx.planet.setPixelOnUpdate(ctx.selfX, ctx.selfY, er.getElementById(STONE));
+          ctx.planet.setPixelOnUpdate(ctx.contactX, ctx.contactY, er.getElementById(STONE));
+        }*/
+       }
     );
 
     er.registerElement(
@@ -492,6 +395,7 @@ void initElements()
        1,
        false,
        0.f,
-       Item::VIRUS
+       Item::VIRUS,
+       [](ContactContext ctx){}
     );
 }

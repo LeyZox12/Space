@@ -21,7 +21,7 @@ struct ElementRegistry
         registerElement("NONE_ERROR", 0, false, 0.f, Color(255, 0, 218));
     }
 
-    Element getElementByColor(Color color)
+    Element& getElementByColor(Color color)
     {
         /*for(auto& e : elements)
             if(e.color.r == color.r && 
@@ -30,7 +30,7 @@ struct ElementRegistry
         return elements[0];
     }
 
-    Element getElementById(int id)
+    Element& getElementById(int id)
     {
         if(id < 0 || id > elements.size()) return elements[0];
         return elements[id];
@@ -42,6 +42,7 @@ struct ElementRegistry
         e.name = name;
         e.weight = weight;
         e.hasPhysics = hasPhysics;
+        e.fom = fom;
         e.awake = 2;
         e.id = elements.size();
         e.color = sf::Color(
@@ -60,6 +61,7 @@ struct ElementRegistry
         e.weight = weight;
         e.hasPhysics = hasPhysics;
         e.awake = 2;
+        e.fom = fom;
         e.id = elements.size();
         e.color = sf::Color(
             (uint8_t)color.r,

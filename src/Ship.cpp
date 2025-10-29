@@ -6,7 +6,10 @@
 #include "SFML/Graphics/Vertex.hpp"
 #include "SFML/Graphics/VertexArray.hpp"
 #include "SFML/System/Angle.hpp"
+#include "SFML/System/Vector2.hpp"
+#include "globals.hpp"
 #include "helpers.hpp"
+#include <string>
 
 Ship::Ship()
 {
@@ -77,8 +80,10 @@ void Ship::update(std::vector<Planet>& planets, float dt)
     vec2 pos = sprite.getPosition();
     auto it = min_element(planets.begin(), planets.end(), [pos](auto& p1, auto& p2)
             {
-                return hypot(p1.getSprite().getPosition().x - pos.x, p1.getSprite().getPosition().y - pos.y) < 
-                       hypot(p2.getSprite().getPosition().x - pos.x, p2.getSprite().getPosition().y - pos.y); 
+                sf::Vector2f p1Center = p1.getSprite().getPosition() + p1.getSprite().getSize() / 2.f;
+                sf::Vector2f p2Center = p2.getSprite().getPosition() + p2.getSprite().getSize() / 2.f;
+                return hypot(p1Center.x - pos.x, p1Center.y - pos.y) < 
+                       hypot(p2Center.x - pos.x, p2Center.y - pos.y); 
             });
     int index = distance(planets.begin(), it);
     currentPlanetIndex = index;
@@ -89,9 +94,9 @@ void Ship::update(std::vector<Planet>& planets, float dt)
 
     if(landing && !landed)
     {
-        /*int count = 0;
+        int count = 0;
         vec2 p1 = leftLandingGear.getPosition();
-        int n1 = planets[index].getElementAtfPos(p1.x, p1.y).id;
+        int n1 = planets[index].getElementAtfPos(vec2(p1.x, p1.y)).id;
         if(n1 > 1)
         {
             count++;
@@ -99,7 +104,7 @@ void Ship::update(std::vector<Planet>& planets, float dt)
         else
             leftLandingDist++;
         vec2 p2 = rightLandingGear.getPosition();
-        int n2 = planets[index].getElementAtfPos(p2.x, p2.y).id;
+        int n2 = planets[index].getElementAtfPos(vec2(p2.x, p2.y)).id;
         if(n2 > 1)
         {
             count++;
@@ -169,13 +174,13 @@ void Ship::update(std::vector<Planet>& planets, float dt)
     {
         if(ctx.collided)
         {
-            /*vec2 pos = planets[currentPlanetIndex].getCellPos(ctx.hitPos.x,ctx.hitPos.y);
-            planets[currentPlanetIndex].setPixelOnUpdate(pos.x, pos.y, er.getElementById(ITEMID::AIR));
-            return;
             vec2 diff = sprite.getPosition() - oldPos;
             sprite.setPosition(oldPos);
             oldPos += diff; 
-            sprite.setRotation(degrees(oldRot));*/
+            sprite.setRotation(degrees(oldRot));
+            return;
+            sf::Vector2i pos = planets[currentPlanetIndex].getGridPos(vec2(ctx.hitPos.x,ctx.hitPos.y));
+            planets[currentPlanetIndex].setPixel(pos.x, pos.y, er.getElementById(ITEMID::AIR));
         }
     });
 
@@ -295,7 +300,7 @@ void Ship::debugOnScreen(vector<Planet>& planets, RenderWindow& window, float dt
 
     vec2 diff = sprite.getPosition() - oldPos;
     float rotDiff = -sprite.getRotation().asDegrees() - oldRot;
-    string debugStr = "fps:" + format("{:.1f}", 1.f / dt) + "\npos: \nx:" + format("{:.1f}",sprite.getPosition().x) + "\ny:" + format("{:.1f}",sprite.getPosition().y) + "\nthrottle:" + format("{:.1f}",throttle) + "\nsteer:" + format("{:.1f}",steer) + "\nmag:" + format("{:.1f}", hypot(diff.x, diff.y)) + "\n";
+    string debugStr = "fps:" + format("{:.1f}", 1.f / dt) + "\nrunning_threads:" + std::to_string(threadPool.tasks.size()+1) + "\npos: \nx:" + format("{:.1f}",sprite.getPosition().x) + "\ny:" + format("{:.1f}",sprite.getPosition().y) + "\nthrottle:" + format("{:.1f}",throttle) + "\nsteer:" + format("{:.1f}",steer) + "\nmag:" + format("{:.1f}", hypot(diff.x, diff.y)) + "\n";
     if(brake)
     {
         debugStr += "EMERGENCY BRAKE ON\n";
@@ -337,6 +342,7 @@ void Ship::debugOnScreen(vector<Planet>& planets, RenderWindow& window, float dt
             RectangleShape pixel({pixelSize, pixelSize});
             pixel.setFillColor(Color::Green);
             pixel.setPosition(ctx.hitPos);
+            if(ctx.collided) pixel.setFillColor(sf::Color::Red);
             window.draw(pixel);
         });
     }

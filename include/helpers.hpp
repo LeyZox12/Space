@@ -3,8 +3,10 @@
 #include <SFML/Graphics.hpp>
 #include <algorithm>
 #include <iostream>
+#include "globals.hpp"
 #include "Element.h"
 #include <functional>
+#include "Planet.h"
 #include <cmath>
 
 typedef sf::Vector2f vec2;
@@ -22,7 +24,7 @@ struct CollisionCallbackContext
 
 inline void checkCollision(sf::RectangleShape sprite, Planet& p, vec2 offset, std::function<void(CollisionCallbackContext)> callback)
 {
-    /*sf::Image bitmap = sprite.getTexture()->copyToImage();
+    sf::Image bitmap = sprite.getTexture()->copyToImage();
     int size =std::max(sprite.getSize().y, sprite.getSize().x) / pixelSize ;
     for(int i = 0; i < size; i++)
     for(int j = 0; j < size; j++)
@@ -43,14 +45,16 @@ inline void checkCollision(sf::RectangleShape sprite, Planet& p, vec2 offset, st
         //pos = vec2(floor(pos.x/pixelSize)*pixelSize , floor((pos.y)/pixelSize)*pixelSize);
         if(texPos.x > 0.f && texPos.x < bitmap.getSize().x && texPos.y > 0.f && texPos.y < bitmap.getSize().y && bitmap.getPixel({texPos.x, texPos.y}) != Color(0, 0, 0, 0))
         {
-            Element& e = p.getElementAtfPos(pos.x, pos.y);
+            sf::Vector2i ipos = p.getGridPos(vec2(pos.x, pos.y));
+            //std::cout << ipos.x << ";" << ipos.y << std::endl;
+            Element e = p.getPixel(ipos.x, ipos.y);
             if(e.id > 1)
             {
-                callback(CollisionCallbackContext(true, pos));
+                callback(CollisionCallbackContext(true, (vec2)pos));
             }
             else
-                callback(CollisionCallbackContext(false, pos));
+                callback(CollisionCallbackContext(false, (vec2)pos));
         }
         //callback(CollisionCallbackContext(false, pos));
-    }*/
+    }
 }

@@ -1,8 +1,8 @@
 
-CXXFLAGS = -std=c++23 -g -I"../../../SFML-3.0.0/include" -Iinclude -I"../../class/PointEngine/include"
+CXXFLAGS = -std=c++23 -g -I"../../../SFML-3.0.0/include" -Iinclude -I"../../class/PointEngine/include" -I"../../../opencv-4.12.0/include" -I"../../../glm"
 
-final : main.o UIutils.o Ship.o Map.o Planet.o Player.o PointEngine.o Element.o Point.o Rectangle.o PhysicConstraint.o PointEngine.o
-	g++ $(CXXFLAGS) Point.o Rectangle.o PhysicConstraint.o PointEngine.o Element.o UIutils.o Ship.o Map.o Planet.o Player.o main.o -o Spaceiscool -L"../../../SFML-3.0.0/lib" -lsfml-graphics-d -lsfml-window-d -lsfml-system-d
+final : main.o UIutils.o Ship.o Parallax.o Map.o Planet.o Player.o PointEngine.o Element.o Point.o Rectangle.o PhysicConstraint.o PointEngine.o
+	g++ $(CXXFLAGS) src/glad.c Point.o Rectangle.o PhysicConstraint.o PointEngine.o Element.o UIutils.o Ship.o Map.o Planet.o Player.o Parallax.o main.o -o Spaceiscool -L"../../../SFML-3.0.0/lib" -L"../../../opencv-4.12.0/lib" -lsfml-graphics-d -lsfml-window-d -lsfml-system-d -lopencv_core4120.dll -lopencv_imgproc4120.dll
 
 main.o : main.cpp
 	g++ $(CXXFLAGS) -c main.cpp 
@@ -12,6 +12,9 @@ Element.o : src/Element.cpp
 
 UIutils.o : ../../class/UIutils.cpp
 	g++ $(CXXFLAGS) -c "../../class/UIutils.cpp"
+
+Parallax.o : src/Parallax.cpp
+	g++ $(CXXFLAGS) -c src/Parallax.cpp"
 
 Ship.o : src/Ship.cpp
 	g++ $(CXXFLAGS) -c "src/Ship.cpp"

@@ -16,6 +16,8 @@ void Parallax::addOnTop(std::string texturePath, float ratio, float scale)
         std::cout << "couldn't load texture for " << texturePath << std::endl;
     }
     rect.setSize((sf::Vector2f)t->getSize());
+    
+    rect.setFillColor(sf::Color(255.f, 255.f, 255.f, 255.f * ratio));
     t->setRepeated(true);
     rect.setScale(sf::Vector2f(scale, scale));
     elements.push_back(rect);
